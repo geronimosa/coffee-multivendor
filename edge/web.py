@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+import subprocess
 from datetime import datetime, timezone
 from decimal import Decimal
 import time
@@ -376,10 +377,43 @@ def staff_portal(slug: str):
             "SELECT item_name,variant_label,quantity FROM order_items WHERE order_id=? ORDER BY id", (order["id"],)
         ).fetchall()
         order_rows.append({"order": order, "items": items})
+    sync_state = dict(database().execute(
+        "SELECT key,value FROM edge_state WHERE key IN ('last_order_sync_at','last_reconciliation_at')"
+    ).fetchall())
+    sync_state["pending_orders"] = database().execute(
+        "SELECT COUNT(*) FROM orders WHERE synced_at IS NULL"
+    ).fetchone()[0]
+    sync_state["pending_events"] = database().execute(
+        "SELECT COUNT(*) FROM edge_order_events WHERE synced_at IS NULL"
+    ).fetchone()[0]
     return render_template(
         "staff_portal.html", vendor=vendor, tabs=STAFF_TABS, active_tab=tab,
-        counts=counts, order_rows=order_rows, staff=staff,
+        counts=counts, order_rows=order_rows, staff=staff, sync_state=sync_state,
+        sync_result=request.args.get("sync", ""),
     )
+
+
+@app.post("/vendor/<slug>/sync")
+def staff_sync_now(slug: str):
+    vendor = assigned_vendor()
+    if slug != vendor["slug"] or staff_identity(slug) is None:
+        abort(403)
+    require_csrf()
+    try:
+        result = subprocess.run(
+            [str(EDGE_APP_DIR / "agent.py"), "sync"],
+            cwd=EDGE_APP_DIR,
+            env={**os.environ, "QRKIOSK_EDGE_DATA_DIR": str(DATA_DIR)},
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=30,
+            check=False,
+        )
+        outcome = "ok" if result.returncode == 0 else "failed"
+    except (OSError, subprocess.TimeoutExpired):
+        outcome = "failed"
+    return redirect(url_for("staff_portal", slug=slug, sync=outcome), code=303)
 
 
 @app.post("/vendor/<slug>/order")

@@ -84,7 +84,7 @@ if ($authorized) {
         $stmt->execute([$vendorId]);
         $counts[$key] = (int) $stmt->fetchColumn();
     }
-    $stmt = $pdo->prepare("SELECT o.*,GROUP_CONCAT(CONCAT(oi.quantity,'× ',m.name,IF(oi.variant_label IS NULL OR oi.variant_label='','',CONCAT(' (',oi.variant_label,')'))) ORDER BY oi.id SEPARATOR ', ') items FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN menu_items m ON m.id=oi.menu_item_id WHERE o.restaurant_id=? AND {$tabs[$activeTab]['where']} GROUP BY o.id ORDER BY o.created_at");
+    $stmt = $pdo->prepare("SELECT o.*,GROUP_CONCAT(CONCAT(oi.quantity,'× ',COALESCE(oi.item_name,m.name,'Item'),IF(oi.variant_label IS NULL OR oi.variant_label='','',CONCAT(' (',oi.variant_label,')'))) ORDER BY oi.id SEPARATOR ', ') items FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN menu_items m ON m.id=oi.menu_item_id WHERE o.restaurant_id=? AND {$tabs[$activeTab]['where']} GROUP BY o.id ORDER BY o.created_at");
     $stmt->execute([$vendorId]);
     $orders = $stmt->fetchAll();
 }

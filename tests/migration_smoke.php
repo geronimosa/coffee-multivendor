@@ -34,12 +34,12 @@ try {
         $pdo->exec($migration);
     }
 
-    foreach (['vendor_integrations', 'audit_logs', 'password_setup_tokens', 'edge_devices', 'edge_enrollment_tokens', 'edge_staff_access_keys'] as $requiredTable) {
+    foreach (['vendor_integrations', 'audit_logs', 'password_setup_tokens', 'edge_devices', 'edge_enrollment_tokens', 'edge_staff_access_keys', 'edge_order_events'] as $requiredTable) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?');
         $stmt->execute([$testDatabase, $requiredTable]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException('Missing table: ' . $requiredTable);
     }
-    foreach ([['restaurants', 'slug'], ['restaurants', 'theme_primary'], ['restaurants', 'hero_path'], ['restaurants', 'vendor_description'], ['users', 'password_hash'], ['orders', 'payment_status'], ['edge_staff_access_keys', 'username'], ['edge_staff_access_keys', 'key_hash']] as [$table, $column]) {
+    foreach ([['restaurants', 'slug'], ['restaurants', 'theme_primary'], ['restaurants', 'hero_path'], ['restaurants', 'vendor_description'], ['users', 'password_hash'], ['orders', 'payment_status'], ['orders', 'order_uuid'], ['order_items', 'origin_line_id'], ['edge_staff_access_keys', 'username'], ['edge_staff_access_keys', 'key_hash'], ['edge_devices', 'last_reconciliation_at']] as [$table, $column]) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name=? AND column_name=?');
         $stmt->execute([$testDatabase, $table, $column]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException("Missing column: $table.$column");

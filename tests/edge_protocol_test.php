@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../includes/edge_devices.php';
+require_once __DIR__ . '/../includes/edge_orders.php';
 
 function edge_assert(bool $condition, string $message): void
 {
@@ -20,5 +21,7 @@ edge_assert(!hash_equals(edge_secret_hash($secret), edge_secret_hash($secret . '
 
 $staffKey = generate_edge_staff_key();
 edge_assert((bool) preg_match('/^[A-HJ-NP-Za-km-z2-9]{10}$/', $staffKey), 'Staff key format is invalid.');
+edge_assert(edge_sync_decimal('12.5') === '12.50', 'Edge decimal normalization failed.');
+edge_assert(edge_sync_datetime('2026-09-02T20:00:00+00:00') === '2026-09-02 20:00:00', 'Edge timestamp normalization failed.');
 
 echo "Edge protocol test passed.\n";

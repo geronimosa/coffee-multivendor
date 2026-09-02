@@ -18,9 +18,9 @@ if (!$order) die("Order not found");
 
 // Fetch order items
 $stmt = $pdo->prepare("
-    SELECT oi.variant_label, oi.quantity, oi.unit_price, m.name
+    SELECT oi.variant_label, oi.quantity, oi.unit_price, COALESCE(oi.item_name,m.name,'Item') AS name
     FROM order_items oi
-    JOIN menu_items m ON oi.menu_item_id = m.id
+    LEFT JOIN menu_items m ON oi.menu_item_id = m.id
     WHERE oi.order_id = ?
 ");
 $stmt->execute([$order['id']]);

@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$stmt = $pdo->prepare('SELECT device_identifier, device_name, status, software_version, provisioned_at, last_seen_at, last_snapshot_hash FROM edge_devices WHERE vendor_id=? LIMIT 1');
+$stmt = $pdo->prepare('SELECT device_identifier, device_name, status, software_version, provisioned_at, last_seen_at, last_snapshot_hash, last_order_sync_at, last_reconciliation_at FROM edge_devices WHERE vendor_id=? LIMIT 1');
 $stmt->execute([$vendorId]);
 $device = $stmt->fetch() ?: null;
 
@@ -102,6 +102,8 @@ require __DIR__ . '/_header.php';
         <dt>Software</dt><dd><?= e($device['software_version'] ?: 'Unknown') ?></dd>
         <dt>Provisioned</dt><dd><?= e($device['provisioned_at']) ?></dd>
         <dt>Last seen</dt><dd><?= e($device['last_seen_at'] ?: 'Never') ?></dd>
+        <dt>Last order sync</dt><dd><?= e($device['last_order_sync_at'] ?: 'No orders uploaded yet') ?></dd>
+        <dt>Daily reconciliation</dt><dd><?= e($device['last_reconciliation_at'] ?: 'Not run yet') ?></dd>
     </dl>
 <?php else: ?><p class="muted">No Raspberry Pi has been enrolled for vendor slug <code><?= e($vendor['slug']) ?></code>.</p><?php endif; ?>
 </section>

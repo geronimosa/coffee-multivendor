@@ -3,3 +3,29 @@
     font-size: 1.05rem;
     text-transform: uppercase;
 }
+
+.sync-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.sync-strip span,
+.sync-strip small,
+.sync-strip em {
+    display: block;
+}
+
+.sync-strip small { opacity: .7; }
+.sync-strip em { margin-top: 4px; font-style: normal; font-weight: 800; }
+.sync-ok { color: #146c2e; }
+.sync-error { color: #842525; }
+
+@media (max-width: 600px) {
+    .sync-strip { align-items: stretch; flex-direction: column; }
+    .sync-strip button { width: 100%; }
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=QRKiosk Edge daily full order reconciliation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=qrkiosk-edge
+Group=qrkiosk-edge
+StateDirectory=qrkiosk-edge
+StateDirectoryMode=0700
+ExecStart=/opt/qrkiosk-edge/agent.py reconcile
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/qrkiosk-edge
