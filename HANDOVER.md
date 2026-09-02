@@ -40,6 +40,7 @@ Completed and deployed:
 - Migration smoke test using a disposable database.
 - QRKiosk Edge phase-one foundation: one-time Pi enrollment, revocable per-device credentials, signed vendor/menu snapshots and a dependency-free SQLite sync agent.
 - Test Pi `home.local` enrolled for `vendor-1`; its one-minute sync timer and Gunicorn storefront are active. The temporary HTTP shopfront at `http://home.local/shop/vendor-1` supports validated local carts, checkout, Edge-owned UUID orders, manual payment and order status. HTTPS and split DNS are not configured yet.
+- Edge staff access at `http://home.local/vendor/vendor-1`: super-admin can create multiple named, expiring 10-character user keys per vendor; only hashes synchronize to the Pi, keys can be revoked independently, and fulfilment actions retain the acting username. The local queues support manual-payment confirmation and Pending -> Preparing -> Ready -> Collected -> Archived lifecycle controls.
 
 ## Applied database migrations
 
@@ -109,16 +110,16 @@ Exclude from every commit and copy operation:
 - `pay_by_card.php` is legacy-named code for “pay at counter”; it needs CSRF/ownership hardening and should become a proper checkout action.
 - A complete backend accounting/reporting system for sales, payments, refunds, fees, settlements and reconciliation is not built.
 - Vendor self-service menu management needs a focused review for vendor scoping, permissions and modern mobile UI.
-- Automated application tests are minimal; only PHP lint and migration smoke coverage currently exist.
+- Automated coverage includes PHP lint, rich-text and Edge protocol checks, atomic snapshot tests, and Pi-hosted Flask tests for local ordering and staff fulfilment. Payment gateways remain outside this coverage.
 - This remains a live demo. Do not market gateways as certified/production-ready until their end-to-end integrations and security tests are complete.
 
 ## Exact next development task
 
 Continue QRKiosk Edge phase two while keeping the old prototype available on ports 8080/8081:
 
-1. Build the new `/vendor/vendor-1` staff fulfilment view around the Edge database, including manual-payment confirmation.
-2. Add idempotent outbound order/status synchronization before implementing Yoco.
-3. Replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall.
+1. Add idempotent outbound Edge order, order-item and staff-event synchronization to the central server. Preserve the Edge UUID and attribute staff actions by the synchronized staff-key ID/username.
+2. Add retry state and conflict handling so an interrupted connection cannot duplicate a sale or regress a newer status.
+3. After outbound sync is verified, implement Yoco and then replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall.
 
 The agreed model and phased plan are documented in `docs/EDGE_ARCHITECTURE.md`. Yoco remains the only planned stadium gateway; when the Pi has no upstream internet, payment is manual and no card transaction is queued.
 
@@ -183,6 +184,12 @@ Known pre-foundation backup:
 
 - `/home/steve/coffee_backups/pre_deploy_20260902_163540/coffee_files.tar.gz`
 - `/home/steve/coffee_backups/pre_deploy_20260902_163540/database.sql.gz`
+
+Latest pre-staff-access backups:
+
+- Central live files and database: `/home/steve/coffee_backups/pre_staff_20260902_224700/`
+- Pi installed code: `/home/steve/qrkiosk_backups/edge-code-before-staff-20260902.tar.gz`
+- Pi Edge database: `/var/lib/qrkiosk-edge/backups/edge-before-staff-20260902.db`
 
 Before each material deployment, create a new timestamped directory under `/home/steve/coffee_backups/` containing both a compressed live document-root archive and compressed database dump. Verify both files are non-empty before proceeding. Keep dumps outside the repository and web root.
 
