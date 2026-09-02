@@ -30,4 +30,4 @@ sudo -u qrkiosk-edge /opt/qrkiosk-edge/agent.py sync
 sudo -u qrkiosk-edge /opt/qrkiosk-edge/agent.py status
 ```
 
-The included systemd timer runs synchronization every minute. The local storefront, local order creation, outbound order synchronization, split DNS, HTTPS, and restricted firewall are subsequent phases.
+The included systemd timer runs synchronization every minute. `qrkiosk-edge-web.service` serves the mirrored vendor at `/shop/{vendor-slug}` using Gunicorn. Local order creation, outbound order synchronization, split DNS, HTTPS, and the restricted hotspot firewall are subsequent phases.

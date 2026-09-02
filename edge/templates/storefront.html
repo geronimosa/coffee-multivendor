@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>{{ vendor.name }} · Local ordering</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='edge.css') }}">
+</head>
+<body style="--brand:{{ vendor.theme_primary }};--accent:{{ vendor.theme_accent }};--page:{{ vendor.theme_background }};--surface:{{ vendor.theme_surface }};--text:{{ vendor.theme_text }}">
+<main class="store-shell">
+    <header class="store-hero">
+        <div>
+            <span class="edge-badge">QRKiosk Edge · Local venue service</span>
+            <h1>{{ vendor.name }}</h1>
+            <p>{{ vendor.storefront_message or 'Order ahead and collect when it is ready.' }}</p>
+        </div>
+    </header>
+
+    {% if not groups %}<section class="empty"><h2>Nothing on the menu yet</h2><p>Please check back shortly.</p></section>{% endif %}
+    {% for category, items in groups.items() %}
+        <h2 class="category">{{ category }}</h2>
+        <section class="product-grid">
+        {% for item in items %}
+            <article class="product">
+                <h3>{{ item.row.name }}</h3>
+                {% if item.variants %}
+                    <ul class="variants">
+                    {% for variant in item.variants %}<li><span>{{ variant.label }}</span><strong>R{{ '%.2f'|format(variant.price|float) }}</strong></li>{% endfor %}
+                    </ul>
+                {% else %}
+                    <strong>R{{ '%.2f'|format(item.row.price|float) }}</strong>
+                {% endif %}
+            </article>
+        {% endfor %}
+        </section>
+    {% endfor %}
+
+    {% if vendor.vendor_description %}<footer class="vendor-footer">{{ vendor.vendor_description|safe }}</footer>{% endif %}
+</main>
+</body>
+</html>
