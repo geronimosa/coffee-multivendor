@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?= e($pageTitle ?? 'Super Admin') ?> · Coffee Multivendor</title>
-    <link rel="stylesheet" href="/assets/css/super-admin.css">
+    <link rel="stylesheet" href="/assets/css/super-admin.css?v=20260902-1">
 </head>
 <body>
 <header class="topbar">

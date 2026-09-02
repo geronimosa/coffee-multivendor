@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../includes/integrations.php';
 require_once __DIR__ . '/../includes/vendor_theme.php';
+require_once __DIR__ . '/../includes/rich_text.php';
 require_super_admin();
 
 $vendorId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?: null;
@@ -10,7 +11,7 @@ $vendor = [
     'name' => '', 'slug' => '', 'status' => 'active', 'contact_email' => '', 'contact_phone' => '',
     'theme_primary' => '#1F4D3A', 'theme_accent' => '#F2B84B', 'theme_background' => '#F7F5F0',
     'theme_surface' => '#FFFFFF', 'theme_text' => '#17211C', 'logo_path' => null, 'hero_path' => null,
-    'storefront_message' => 'Order ahead and collect when it is ready.',
+    'storefront_message' => 'Order ahead and collect when it is ready.', 'vendor_description' => '',
 ];
 $yoco = null;
 $snapscan = null;
@@ -49,6 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $themeSurface = valid_hex_color($_POST['theme_surface'] ?? null, '#FFFFFF');
     $themeText = valid_hex_color($_POST['theme_text'] ?? null, '#17211C');
     $storefrontMessage = trim((string) ($_POST['storefront_message'] ?? ''));
+    try {
+        $vendorDescription = sanitize_vendor_description($_POST['vendor_description'] ?? '');
+    } catch (InvalidArgumentException $exception) {
+        $vendorDescription = '';
+        $error = $exception->getMessage();
+    }
 
     if ($name === '' || $slug === '') {
         $error = 'Vendor name and slug are required.';
@@ -116,8 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $logoPath = store_vendor_image($_FILES['logo'] ?? [], $vendorId, 'logo') ?: ($vendor['logo_path'] ?? null);
             $heroPath = store_vendor_image($_FILES['hero'] ?? [], $vendorId, 'hero') ?: ($vendor['hero_path'] ?? null);
-            $stmt = $pdo->prepare('UPDATE restaurants SET theme_primary=?, theme_accent=?, theme_background=?, theme_surface=?, theme_text=?, logo_path=?, hero_path=?, storefront_message=? WHERE id=?');
-            $stmt->execute([$themePrimary, $themeAccent, $themeBackground, $themeSurface, $themeText, $logoPath, $heroPath, $storefrontMessage ?: null, $vendorId]);
+            $stmt = $pdo->prepare('UPDATE restaurants SET theme_primary=?, theme_accent=?, theme_background=?, theme_surface=?, theme_text=?, logo_path=?, hero_path=?, storefront_message=?, vendor_description=? WHERE id=?');
+            $stmt->execute([$themePrimary, $themeAccent, $themeBackground, $themeSurface, $themeText, $logoPath, $heroPath, $storefrontMessage ?: null, $vendorDescription ?: null, $vendorId]);
 
             if (!empty($_POST['clear_yoco'])) {
                 delete_vendor_integration($pdo, $vendorId, 'yoco');
@@ -199,6 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'theme_primary' => $themePrimary, 'theme_accent' => $themeAccent,
         'theme_background' => $themeBackground, 'theme_surface' => $themeSurface, 'theme_text' => $themeText,
         'storefront_message' => $storefrontMessage,
+        'vendor_description' => $vendorDescription,
     ];
     $owner = ['name' => $ownerName, 'email' => $ownerEmail];
 }
@@ -227,6 +235,21 @@ require __DIR__ . '/_header.php';
     <div><label for="theme_surface">Card background</label><input id="theme_surface" type="color" name="theme_surface" value="<?= e($vendor['theme_surface']) ?>"></div>
     <div><label for="theme_text">Text color</label><input id="theme_text" type="color" name="theme_text" value="<?= e($vendor['theme_text']) ?>"></div>
     <div class="full"><label for="storefront_message">Storefront message</label><input id="storefront_message" name="storefront_message" maxlength="255" value="<?= e($vendor['storefront_message'] ?? '') ?>"></div>
+    <div class="full" data-rich-text>
+        <label for="vendor_description">Vendor introduction</label>
+        <p class="muted">Shown on the customer storefront and vendor staff portal. Formatting is restricted to safe headings, paragraphs, emphasis, lists, quotes, and links.</p>
+        <div class="rich-text-toolbar" data-toolbar hidden aria-label="Formatting controls">
+            <button type="button" data-command="bold"><strong>Bold</strong></button>
+            <button type="button" data-command="italic"><em>Italic</em></button>
+            <button type="button" data-command="formatBlock" data-value="h2">Heading</button>
+            <button type="button" data-command="insertUnorderedList">Bullets</button>
+            <button type="button" data-command="insertOrderedList">Numbers</button>
+            <button type="button" data-command="createLink">Link</button>
+            <button type="button" data-command="removeFormat">Clear formatting</button>
+        </div>
+        <div class="rich-text-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Vendor introduction" hidden></div>
+        <textarea id="vendor_description" name="vendor_description" maxlength="20000" rows="10"><?= e($vendor['vendor_description'] ?? '') ?></textarea>
+    </div>
     <div><label for="logo">Logo image</label><input id="logo" type="file" name="logo" accept="image/png,image/jpeg,image/webp"><?php if (!empty($vendor['logo_path'])): ?><small>Current logo saved</small><?php endif; ?></div>
     <div><label for="hero">Background/hero image</label><input id="hero" type="file" name="hero" accept="image/png,image/jpeg,image/webp"><?php if (!empty($vendor['hero_path'])): ?><small>Current hero saved</small><?php endif; ?></div>
 </div></section>
@@ -265,4 +288,5 @@ require __DIR__ . '/_header.php';
 </div></section>
 <div class="actions"><button type="submit">Save vendor</button><a class="button secondary" href="/super/">Cancel</a></div>
 </form>
+<script src="/assets/js/rich-text-editor.js?v=20260902-1" defer></script>
 <?php require __DIR__ . '/_footer.php'; ?>
