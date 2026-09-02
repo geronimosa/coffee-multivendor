@@ -13,6 +13,8 @@ $vendor = [
     'storefront_message' => 'Order ahead and collect when it is ready.',
 ];
 $yoco = null;
+$snapscan = null;
+$zapper = null;
 $twilio = null;
 $owner = null;
 $error = null;
@@ -22,6 +24,8 @@ if ($vendorId) {
     $stmt->execute([$vendorId]);
     $vendor = $stmt->fetch() ?: redirect('/super/');
     $yoco = integration_for_vendor($pdo, $vendorId, 'yoco');
+    $snapscan = integration_for_vendor($pdo, $vendorId, 'snapscan');
+    $zapper = integration_for_vendor($pdo, $vendorId, 'zapper');
     $twilio = integration_for_vendor($pdo, $vendorId, 'twilio');
     $stmt = $pdo->prepare("SELECT u.name, u.email FROM users u JOIN restaurant_users ru ON ru.user_id=u.id WHERE ru.restaurant_id=? AND ru.role='admin' ORDER BY ru.id LIMIT 1");
     $stmt->execute([$vendorId]);
@@ -72,6 +76,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (!$error && !empty($_POST['snapscan_enabled']) && empty($_POST['clear_snapscan'])) {
+        $existing = $vendorId ? integration_for_vendor($pdo, $vendorId, 'snapscan') : null;
+        $config = $existing ? integration_config($existing) : [];
+        $snapCode = trim((string) ($_POST['snapscan_snap_code'] ?? '')) ?: ($config['snap_code'] ?? '');
+        $apiKey = trim((string) ($_POST['snapscan_api_key'] ?? '')) ?: ($config['api_key'] ?? '');
+        if ($snapCode === '' || $apiKey === '') $error = 'SnapCode and API key are required before enabling SnapScan.';
+    }
+
+    if (!$error && !empty($_POST['zapper_enabled']) && empty($_POST['clear_zapper'])) {
+        $existing = $vendorId ? integration_for_vendor($pdo, $vendorId, 'zapper') : null;
+        $config = $existing ? integration_config($existing) : [];
+        $merchantId = trim((string) ($_POST['zapper_merchant_id'] ?? '')) ?: ($config['merchant_id'] ?? '');
+        $siteId = trim((string) ($_POST['zapper_site_id'] ?? '')) ?: ($config['site_id'] ?? '');
+        $apiKey = trim((string) ($_POST['zapper_api_key'] ?? '')) ?: ($config['api_key'] ?? '');
+        if ($merchantId === '' || $siteId === '' || $apiKey === '') $error = 'Merchant ID, Site ID, and API key are required before enabling Zapper.';
+    }
+
     if (!$error) {
         try {
             $pdo->beginTransaction();
@@ -117,6 +138,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
 
+            if (!empty($_POST['clear_snapscan'])) {
+                delete_vendor_integration($pdo, $vendorId, 'snapscan');
+            } else {
+                save_vendor_integration($pdo, $vendorId, 'snapscan', ($_POST['snapscan_environment'] ?? '') === 'test' ? 'test' : 'live', !empty($_POST['snapscan_enabled']), [
+                    'snap_code' => $_POST['snapscan_snap_code'] ?? '',
+                    'api_key' => $_POST['snapscan_api_key'] ?? '',
+                ]);
+            }
+
+            if (!empty($_POST['clear_zapper'])) {
+                delete_vendor_integration($pdo, $vendorId, 'zapper');
+            } else {
+                save_vendor_integration($pdo, $vendorId, 'zapper', ($_POST['zapper_environment'] ?? '') === 'live' ? 'live' : 'test', !empty($_POST['zapper_enabled']), [
+                    'merchant_id' => $_POST['zapper_merchant_id'] ?? '',
+                    'site_id' => $_POST['zapper_site_id'] ?? '',
+                    'api_key' => $_POST['zapper_api_key'] ?? '',
+                ]);
+            }
+
             if ($ownerEmail !== '') {
                 $stmt = $pdo->prepare('INSERT INTO users (email, name, role, active) VALUES (?, ?, \'restaurant_user\', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), active=1');
                 $stmt->execute([$ownerEmail, $ownerName ?: null]);
@@ -136,6 +176,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             audit_log($pdo, $action, 'vendor', (string) $vendorId, $vendorId, [
                 'status' => $status,
                 'yoco_configured' => integration_for_vendor($pdo, $vendorId, 'yoco') !== null,
+                'snapscan_configured' => integration_for_vendor($pdo, $vendorId, 'snapscan') !== null,
+                'zapper_configured' => integration_for_vendor($pdo, $vendorId, 'zapper') !== null,
                 'twilio_configured' => integration_for_vendor($pdo, $vendorId, 'twilio') !== null,
             ]);
             $pdo->commit();
@@ -197,6 +239,21 @@ require __DIR__ . '/_header.php';
     <div><label for="yoco_secret_key">Secret key</label><input id="yoco_secret_key" type="password" name="yoco_secret_key" autocomplete="new-password"></div>
     <div><label><input type="checkbox" name="yoco_enabled" value="1" <?= !empty($yoco['enabled'])?'checked':'' ?>> Enable Yoco</label></div>
     <?php if ($yoco): ?><div><label><input type="checkbox" name="clear_yoco" value="1"> Remove saved Yoco credentials</label></div><?php endif; ?>
+</div></section>
+<section class="card"><h2>SnapScan</h2><p class="muted">Saved credentials: <?= e($snapscan['config_hint'] ?? 'Not configured') ?>. Blank fields retain saved values.</p><div class="grid">
+    <div><label for="snapscan_environment">Environment</label><select id="snapscan_environment" name="snapscan_environment"><option value="live" <?= ($snapscan['environment'] ?? 'live')==='live'?'selected':'' ?>>Live</option><option value="test" <?= ($snapscan['environment'] ?? '')==='test'?'selected':'' ?>>Test</option></select></div>
+    <div><label for="snapscan_snap_code">Merchant SnapCode</label><input id="snapscan_snap_code" name="snapscan_snap_code" autocomplete="off"></div>
+    <div><label for="snapscan_api_key">API key</label><input id="snapscan_api_key" type="password" name="snapscan_api_key" autocomplete="new-password"></div>
+    <div><label><input type="checkbox" name="snapscan_enabled" value="1" <?= !empty($snapscan['enabled'])?'checked':'' ?>> Enable SnapScan</label></div>
+    <?php if ($snapscan): ?><div><label><input type="checkbox" name="clear_snapscan" value="1"> Remove saved SnapScan credentials</label></div><?php endif; ?>
+</div></section>
+<section class="card"><h2>Zapper</h2><p class="muted">Saved credentials: <?= e($zapper['config_hint'] ?? 'Not configured') ?>. Blank fields retain saved values.</p><div class="grid">
+    <div><label for="zapper_environment">Environment</label><select id="zapper_environment" name="zapper_environment"><option value="test" <?= ($zapper['environment'] ?? 'test')==='test'?'selected':'' ?>>Test</option><option value="live" <?= ($zapper['environment'] ?? '')==='live'?'selected':'' ?>>Live</option></select></div>
+    <div><label for="zapper_merchant_id">Merchant ID</label><input id="zapper_merchant_id" name="zapper_merchant_id" autocomplete="off"></div>
+    <div><label for="zapper_site_id">Site ID</label><input id="zapper_site_id" name="zapper_site_id" autocomplete="off"></div>
+    <div><label for="zapper_api_key">API key</label><input id="zapper_api_key" type="password" name="zapper_api_key" autocomplete="new-password"></div>
+    <div><label><input type="checkbox" name="zapper_enabled" value="1" <?= !empty($zapper['enabled'])?'checked':'' ?>> Enable Zapper</label></div>
+    <?php if ($zapper): ?><div><label><input type="checkbox" name="clear_zapper" value="1"> Remove saved Zapper credentials</label></div><?php endif; ?>
 </div></section>
 <section class="card"><h2>WhatsApp via Twilio</h2><p class="muted">Saved credentials: <?= e($twilio['config_hint'] ?? 'Not configured') ?>. Blank fields retain saved values.</p><div class="grid">
     <div><label for="twilio_account_sid">Account SID</label><input id="twilio_account_sid" type="password" name="twilio_account_sid" autocomplete="new-password"></div>

@@ -41,6 +41,7 @@ th,td { padding:.75rem; text-align:left; border-bottom:1px solid var(--line); }
 .integration-state:before { content:""; width:.5rem; height:.5rem; flex:0 0 auto; border-radius:50%; background:#c8c0b9; }
 .integration-state.configured { color:#1d6330; }
 .integration-state.configured:before { background:#43a962; }
+.integration-stack { display:flex; flex-wrap:wrap; gap:.3rem .65rem; }
 .vendor-actions { display:flex; justify-content:flex-end; gap:.4rem; white-space:nowrap; }
 .vendor-actions .button { padding:.45rem .65rem; font-size:.78rem; }
 .staff-queue { font-size:14px; line-height:1.35; }

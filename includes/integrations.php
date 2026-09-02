@@ -33,9 +33,12 @@ function save_vendor_integration(PDO $pdo, int $vendorId, string $provider, stri
         return;
     }
 
-    $hintSource = $provider === 'yoco'
-        ? ($config['secret_key'] ?? '')
-        : ($config['account_sid'] ?? '');
+    $hintSource = match ($provider) {
+        'yoco' => $config['secret_key'] ?? '',
+        'snapscan' => $config['snap_code'] ?? '',
+        'zapper' => $config['merchant_id'] ?? '',
+        default => $config['account_sid'] ?? '',
+    };
     $encrypted = encrypt_secret_array($config);
     $hint = secret_hint($hintSource);
 
