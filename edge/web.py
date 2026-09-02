@@ -362,13 +362,14 @@ def staff_portal(slug: str):
         return render_template("staff_login.html", vendor=vendor, error=error, access_ready=access_ready)
 
     tab = request.args.get("tab", "pending")
-    if tab not in STAFF_TABS:
+    admin_tab = tab == "admin"
+    if tab not in STAFF_TABS and not admin_tab:
         tab = "pending"
     counts = {
         key: database().execute(f"SELECT COUNT(*) FROM orders WHERE {where}").fetchone()[0]
         for key, (_label, where) in STAFF_TABS.items()
     }
-    orders = database().execute(
+    orders = [] if admin_tab else database().execute(
         f"SELECT * FROM orders WHERE {STAFF_TABS[tab][1]} ORDER BY created_at ASC"
     ).fetchall()
     order_rows = []
@@ -389,7 +390,7 @@ def staff_portal(slug: str):
     return render_template(
         "staff_portal.html", vendor=vendor, tabs=STAFF_TABS, active_tab=tab,
         counts=counts, order_rows=order_rows, staff=staff, sync_state=sync_state,
-        sync_result=request.args.get("sync", ""),
+        sync_result=request.args.get("sync", ""), admin_tab=admin_tab,
     )
 
 
@@ -413,7 +414,7 @@ def staff_sync_now(slug: str):
         outcome = "ok" if result.returncode == 0 else "failed"
     except (OSError, subprocess.TimeoutExpired):
         outcome = "failed"
-    return redirect(url_for("staff_portal", slug=slug, sync=outcome), code=303)
+    return redirect(url_for("staff_portal", slug=slug, tab="admin", sync=outcome), code=303)
 
 
 @app.post("/vendor/<slug>/order")

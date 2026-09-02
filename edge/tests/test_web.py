@@ -127,6 +127,10 @@ class StorefrontTests(unittest.TestCase):
         )
         self.assertIn(b"Fulfilment queue", accepted.data)
         self.assertIn(b"Test Customer", accepted.data)
+        self.assertNotIn(b"Sync now", accepted.data)
+        admin = self.client.get("/vendor/test-coffee?tab=admin")
+        self.assertIn(b"Central sync", admin.data)
+        self.assertIn(b"Sync now", admin.data)
 
         for action in ("preparing", "confirm_payment", "complete", "collected", "archived"):
             page = self.client.get("/vendor/test-coffee")

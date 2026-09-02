@@ -57,20 +57,59 @@ function create_edge_staff_access_key(PDO $pdo, int $vendorId, int $userId, stri
     if ($validDays !== null && ($validDays < 1 || $validDays > 365)) {
         throw new InvalidArgumentException('Key duration must be between 1 and 365 days.');
     }
-    $stmt = $pdo->prepare(
-        "SELECT 1 FROM edge_staff_access_keys WHERE vendor_id=? AND username=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1"
-    );
-    $stmt->execute([$vendorId, $username]);
-    if ($stmt->fetchColumn()) {
-        throw new InvalidArgumentException('That username already has an active key. Revoke it before creating another.');
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT id,status,(status='active' AND (expires_at IS NULL OR expires_at>NOW())) AS usable
+             FROM edge_staff_access_keys WHERE vendor_id=? AND username=? ORDER BY id DESC LIMIT 1 FOR UPDATE"
+        );
+        $stmt->execute([$vendorId, $username]);
+        $existing = $stmt->fetch();
+        if ($existing && (int) $existing['usable'] === 1) {
+            throw new InvalidArgumentException('That username already has an active key. Use Regenerate to replace it.');
+        }
+        $accessKey = generate_edge_staff_key();
+        $expiresSql = $validDays === null ? 'NULL' : "DATE_ADD(NOW(), INTERVAL {$validDays} DAY)";
+        if ($existing) {
+            $stmt = $pdo->prepare(
+                "UPDATE edge_staff_access_keys SET key_hash=?,status='active',expires_at={$expiresSql},revoked_at=NULL,created_by=?,created_at=NOW() WHERE id=? AND vendor_id=?"
+            );
+            $stmt->execute([edge_secret_hash($accessKey), $userId, $existing['id'], $vendorId]);
+            $keyId = (int) $existing['id'];
+        } else {
+            $stmt = $pdo->prepare(
+                "INSERT INTO edge_staff_access_keys (vendor_id,username,key_hash,expires_at,created_by) VALUES (?,?,?,{$expiresSql},?)"
+            );
+            $stmt->execute([$vendorId, $username, edge_secret_hash($accessKey), $userId]);
+            $keyId = (int) $pdo->lastInsertId();
+        }
+        $pdo->commit();
+        return ['key' => $accessKey, 'id' => $keyId, 'username' => $username];
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $exception;
     }
-    $accessKey = generate_edge_staff_key();
-    $expiresSql = $validDays === null ? 'NULL' : "DATE_ADD(NOW(), INTERVAL {$validDays} DAY)";
-    $stmt = $pdo->prepare(
-        "INSERT INTO edge_staff_access_keys (vendor_id,username,key_hash,expires_at,created_by) VALUES (?,?,?,{$expiresSql},?)"
-    );
-    $stmt->execute([$vendorId, $username, edge_secret_hash($accessKey), $userId]);
-    return ['key' => $accessKey, 'id' => (int) $pdo->lastInsertId(), 'username' => $username];
+}
+
+function regenerate_edge_staff_access_key(PDO $pdo, int $vendorId, int $keyId, int $userId): array
+{
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare('SELECT id,username FROM edge_staff_access_keys WHERE id=? AND vendor_id=? LIMIT 1 FOR UPDATE');
+        $stmt->execute([$keyId, $vendorId]);
+        $staffKey = $stmt->fetch();
+        if (!$staffKey) throw new InvalidArgumentException('Staff user was not found.');
+        $accessKey = generate_edge_staff_key();
+        $pdo->prepare("UPDATE edge_staff_access_keys SET status='revoked',revoked_at=NOW() WHERE vendor_id=? AND username=? AND id<>? AND status='active'")
+            ->execute([$vendorId, $staffKey['username'], $keyId]);
+        $pdo->prepare("UPDATE edge_staff_access_keys SET key_hash=?,status='active',expires_at=NULL,revoked_at=NULL,created_by=?,created_at=NOW() WHERE id=? AND vendor_id=?")
+            ->execute([edge_secret_hash($accessKey), $userId, $keyId, $vendorId]);
+        $pdo->commit();
+        return ['key' => $accessKey, 'id' => $keyId, 'username' => (string) $staffKey['username']];
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $exception;
+    }
 }
 
 function revoke_edge_staff_access_key(PDO $pdo, int $vendorId, int $keyId): bool

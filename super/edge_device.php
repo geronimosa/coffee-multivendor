@@ -43,6 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             audit_log($pdo, 'edge.staff_access_created', 'edge_staff_access_key', (string) $staffAccess['id'], $vendorId);
             $message = 'Copy this staff key now. It is shown once; the Pi will receive its hash on the next sync.';
+        } elseif (isset($_POST['regenerate_staff_access'])) {
+            $keyId = filter_input(INPUT_POST, 'staff_key_id', FILTER_VALIDATE_INT);
+            if (!$keyId) throw new InvalidArgumentException('Choose a valid staff user.');
+            $staffAccess = regenerate_edge_staff_access_key($pdo, $vendorId, (int) $keyId, (int) $_SESSION['user_id']);
+            audit_log($pdo, 'edge.staff_access_regenerated', 'edge_staff_access_key', (string) $keyId, $vendorId);
+            $message = 'The old staff key has been replaced. Copy the new key now; the Pi will receive its hash on the next sync.';
         } elseif (isset($_POST['revoke_staff_access'])) {
             $keyId = filter_input(INPUT_POST, 'staff_key_id', FILTER_VALIDATE_INT);
             if (!$keyId || !revoke_edge_staff_access_key($pdo, $vendorId, (int) $keyId)) {
@@ -64,11 +70,13 @@ $stmt->execute([$vendorId]);
 $device = $stmt->fetch() ?: null;
 
 $stmt = $pdo->prepare(
-    "SELECT id,username,status,expires_at,revoked_at,created_at,
+    "SELECT k.id,k.username,k.status,k.expires_at,k.revoked_at,k.created_at,
             CASE WHEN status='active' AND (expires_at IS NULL OR expires_at>NOW()) THEN 1 ELSE 0 END AS usable
-     FROM edge_staff_access_keys WHERE vendor_id=? ORDER BY created_at DESC,id DESC"
+     FROM edge_staff_access_keys k
+     JOIN (SELECT username,MAX(id) AS latest_id FROM edge_staff_access_keys WHERE vendor_id=? GROUP BY username) latest ON latest.latest_id=k.id
+     WHERE k.vendor_id=? ORDER BY k.username"
 );
-$stmt->execute([$vendorId]);
+$stmt->execute([$vendorId, $vendorId]);
 $staffKeys = $stmt->fetchAll();
 
 $pageTitle = 'Edge device';
@@ -137,8 +145,10 @@ require __DIR__ . '/_header.php';
 <?php if (!$staffKeys): ?><p class="muted">No staff keys have been created.</p><?php else: ?>
 <div class="table-wrap"><table><thead><tr><th>Staff</th><th>Created</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>
 <?php foreach ($staffKeys as $key): ?>
-<tr><td><?= e($key['username']) ?></td><td><?= e($key['created_at']) ?></td><td><?= e($key['expires_at'] ?: 'No expiry') ?></td><td><span class="badge <?= (int) $key['usable'] === 1 ? '' : 'suspended' ?>"><?= (int) $key['usable'] === 1 ? 'Active' : ($key['status'] === 'revoked' ? 'Revoked' : 'Expired') ?></span></td><td>
+<tr><td><?= e($key['username']) ?></td><td><?= e($key['created_at']) ?></td><td><?= e($key['expires_at'] ?: 'No expiry') ?></td><td><span class="badge <?= (int) $key['usable'] === 1 ? '' : 'suspended' ?>"><?= (int) $key['usable'] === 1 ? 'Active' : ($key['status'] === 'revoked' ? 'Revoked' : 'Expired') ?></span></td><td><div class="actions">
+<form method="post" onsubmit="return confirm('Replace the current key for <?= e($key['username']) ?>? The old key will stop working after the Pi synchronizes.');"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>"><input type="hidden" name="staff_key_id" value="<?= (int) $key['id'] ?>"><button type="submit" name="regenerate_staff_access" value="1">Regenerate</button></form>
 <?php if ((int) $key['usable'] === 1): ?><form method="post" onsubmit="return confirm('Revoke access for <?= e($key['username']) ?>?');"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>"><input type="hidden" name="staff_key_id" value="<?= (int) $key['id'] ?>"><button class="danger-button" type="submit" name="revoke_staff_access" value="1">Revoke</button></form><?php endif; ?>
+</div>
 </td></tr>
 <?php endforeach; ?></tbody></table></div>
 <?php endif; ?>
