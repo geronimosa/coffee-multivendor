@@ -34,7 +34,7 @@ try {
         $pdo->exec($migration);
     }
 
-    foreach (['vendor_integrations', 'audit_logs'] as $requiredTable) {
+    foreach (['vendor_integrations', 'audit_logs', 'password_setup_tokens'] as $requiredTable) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?');
         $stmt->execute([$testDatabase, $requiredTable]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException('Missing table: ' . $requiredTable);
