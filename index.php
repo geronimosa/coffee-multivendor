@@ -34,6 +34,20 @@
         <article><span>02</span><h2>Order at leisure</h2><p>Customers choose and pay when it suits them, then return to the kiosk only for collection.</p></article>
         <article><span>03</span><h2>Built for demanding venues</h2><p>Multiple vendors, secure payment tracking and live fulfilment remain manageable when mobile coverage struggles.</p></article>
     </section>
+
+    <section class="vendor-story" aria-labelledby="vendor-heading">
+        <div class="vendor-intro">
+            <p class="section-label">For existing kiosk vendors</p>
+            <h2 id="vendor-heading">Your kiosk.<br>Your menu.<br><em>Your business.</em></h2>
+            <p>Join an event without giving up control of the way you trade. Each vendor receives an independent storefront and staff workspace, configured around their own products and operation.</p>
+        </div>
+        <div class="vendor-features">
+            <article><span>Menu</span><div><h3>Set your own offering</h3><p>Add products, choices and variants, then manage your own pricing whenever the menu changes.</p></div></article>
+            <article><span>Orders</span><div><h3>Run your own fulfilment</h3><p>Receive and manage orders through clear Pending, Preparing, Ready and Collected queues.</p></div></article>
+            <article><span>Payments</span><div><h3>Keep your payment account</h3><p>Connect supported payment services using the vendor's own credentials and keep payment activity linked to the correct kiosk.</p></div></article>
+            <div class="payment-options" aria-label="Supported payment platforms"><span>Yoco</span><span>SnapScan</span><span>Zapper</span></div>
+        </div>
+    </section>
 </main>
 
 <footer><span>QRKiosk</span><span>Safer vending. Shorter queues. Better events.</span></footer>
