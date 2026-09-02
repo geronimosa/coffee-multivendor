@@ -1,86 +1,15 @@
 <?php
-require_once 'includes/db.php';
+declare(strict_types=1);
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/vendor_theme.php';
 session_start();
-
-$restaurantId = $_GET['rid'] ?? null;
-if (!$restaurantId) die("Missing restaurant ID");
-$logout=$_GET['logout'] ?? null;
-        
-
-// Fetch restaurant name
-$stmt = $pdo->prepare("SELECT name FROM restaurants WHERE id = ?");
-$stmt->execute([$restaurantId]);
-$restaurant = $stmt->fetch();
-if (!$restaurant) die("Restaurant not found");
-
-// Fetch menu items
-$stmt = $pdo->prepare("SELECT * FROM menu_items WHERE restaurant_id = ?");
-$stmt->execute([$restaurantId]);
-$items = $stmt->fetchAll();
+$vendorId=filter_input(INPUT_GET,'rid',FILTER_VALIDATE_INT);if(!$vendorId){http_response_code(400);exit('Missing vendor.');}
+$stmt=$pdo->prepare("SELECT * FROM restaurants WHERE id=? AND status='active'");$stmt->execute([$vendorId]);$vendor=$stmt->fetch();if(!$vendor){http_response_code(404);exit('Storefront not found.');}
+$stmt=$pdo->prepare('SELECT * FROM menu_items WHERE restaurant_id=? ORDER BY category,name');$stmt->execute([$vendorId]);$items=$stmt->fetchAll();$groups=[];foreach($items as $item)$groups[$item['category']?:'Menu'][]=$item;
+$cart=$_SESSION['carts'][$vendorId]??[];$cartCount=array_sum(array_column($cart,'qty'));$cartTotal=array_sum(array_map(fn($row)=>$row['qty']*$row['unit_price'],$cart));$logout=filter_input(INPUT_GET,'logout')?:'';
 ?>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title><?= htmlspecialchars($restaurant['name']) ?> - Menu</title>
-    <style>
-        body { font-family: sans-serif; }
-        .item { margin-bottom: 20px; padding: 10px; border-bottom: 1px solid #ccc; }
-        select, input[type=number] { width: 100%; padding: 5px; margin-top: 5px; }
-    </style>
-    <link rel="stylesheet" href="/coffee/assets/css/theme.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body>
-
-<h2><?= htmlspecialchars($restaurant['name']) ?> - Menu</h2>
-<form method="POST" action="cart.php?rid=<?= $restaurantId ?>&logout=<?= $logout ?>">
-<table border=1 style="width:100%; border-collapse:collapse;">
-    <tr>
-        <th>Item</th>
-        <th>Variant</th>
-        <th>Qty</th>
-    </tr>
-    <?php foreach ($items as $item): 
-        $variants = json_decode($item['variant_options'], true);
-        if (!$variants) continue;
-    ?>
-    <tr style="border-bottom: 1px solid #ddd;">
-        <td>
-            <strong><?= htmlspecialchars($item['name']) ?></strong><br>
-            <small><?= htmlspecialchars($item['category']) ?></small>
-        </td>
-        <td>
-            <select name="items[<?= $item['id'] ?>][variant]" style="width: 100%;">
-                <?php foreach ($variants as $v): ?>
-                    <option value="<?= htmlspecialchars($v['label']) ?>">
-                        <?= htmlspecialchars($v['label']) ?> - R<?= number_format($v['price'], 2) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </td>
-        <td style="text-align: center;">
-            <input type="number" name="items[<?= $item['id'] ?>][qty]" min="0" value="0" style="width: 60px;" onfocus="this.select()">
-        </td>
-    </tr>
-    <?php endforeach; ?>
-    <tr>
-    <td colspan="2"></td>
-    <td style="text-align: center; padding-top: 1rem;">
-        <button type="submit" class="button" style="padding: 0.5rem 1rem; font-weight: bold;">Add to Cart</button>
-    </td>
-    
-    
-</tr>
-</table>
-
-   
-        
-</form>
-<?php if (!empty($_GET['logout'])): ?>
-  <form method="get" action="<?= htmlspecialchars($_GET['logout']) ?>">
-    <button type="submit">Logout</button>
-  </form>
-<?php endif; ?>
-</body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title><?= htmlspecialchars($vendor['name']) ?> · Order online</title><link rel="stylesheet" href="/assets/css/storefront.css"></head>
+<body style="<?= htmlspecialchars(vendor_theme_style($vendor)) ?>"><main class="store-shell"><header class="store-hero"<?= $vendor['hero_path']?' style="background-image:url(\''.htmlspecialchars($vendor['hero_path'],ENT_QUOTES).'\')"':'' ?>><div class="hero-content"><?php if($vendor['logo_path']):?><img class="brand-logo" src="<?= htmlspecialchars($vendor['logo_path']) ?>" alt="<?= htmlspecialchars($vendor['name']) ?> logo"><?php endif;?><h1><?= htmlspecialchars($vendor['name']) ?></h1><p><?= htmlspecialchars($vendor['storefront_message']?:'Order ahead and collect when it is ready.') ?></p></div></header>
+<?php if(!$groups):?><div class="empty"><h2>Nothing on the menu yet</h2><p>Please check back shortly.</p></div><?php endif;?>
+<form method="post" action="cart.php?rid=<?= $vendorId ?>&logout=<?= urlencode($logout) ?>"><?php foreach($groups as $category=>$categoryItems):?><h2 class="category"><?= htmlspecialchars($category) ?></h2><section class="product-grid"><?php foreach($categoryItems as $item):$variants=json_decode($item['variant_options']?:'[]',true)?:[['label'=>'Standard','price'=>$item['price']]];?><article class="product"><h3><?= htmlspecialchars($item['name']) ?></h3><small>From R<?= number_format((float)min(array_column($variants,'price')),2) ?></small><div class="product-controls"><select name="items[<?= (int)$item['id'] ?>][variant]" aria-label="<?= htmlspecialchars($item['name']) ?> option"><?php foreach($variants as $variant):?><option value="<?= htmlspecialchars($variant['label']) ?>"><?= htmlspecialchars($variant['label']) ?> · R<?= number_format((float)$variant['price'],2) ?></option><?php endforeach;?></select><input type="number" name="items[<?= (int)$item['id'] ?>][qty]" value="0" min="0" max="20" inputmode="numeric" aria-label="Quantity"></div></article><?php endforeach;?></section><?php endforeach;?>
+<?php if($items):?><div class="cart-bar"><div class="cart-bar-inner"><button class="primary-button" type="submit"><span>Add selected items</span><span><?= $cartCount?$cartCount.' items · R'.number_format($cartTotal,2):'View cart' ?></span></button></div></div><?php endif;?></form></main></body></html>

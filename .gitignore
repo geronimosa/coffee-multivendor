@@ -4,6 +4,7 @@
 /vendor/
 /images/
 /tmp/
+/assets/vendor/
 *.log
 *.sql
 *.sql.gz

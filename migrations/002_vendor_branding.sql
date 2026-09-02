@@ -1,0 +1,9 @@
+ALTER TABLE restaurants
+    ADD COLUMN IF NOT EXISTS theme_primary CHAR(7) NOT NULL DEFAULT '#1F4D3A' AFTER contact_phone,
+    ADD COLUMN IF NOT EXISTS theme_accent CHAR(7) NOT NULL DEFAULT '#F2B84B' AFTER theme_primary,
+    ADD COLUMN IF NOT EXISTS theme_background CHAR(7) NOT NULL DEFAULT '#F7F5F0' AFTER theme_accent,
+    ADD COLUMN IF NOT EXISTS theme_surface CHAR(7) NOT NULL DEFAULT '#FFFFFF' AFTER theme_background,
+    ADD COLUMN IF NOT EXISTS theme_text CHAR(7) NOT NULL DEFAULT '#17211C' AFTER theme_surface,
+    ADD COLUMN IF NOT EXISTS logo_path VARCHAR(255) NULL AFTER theme_text,
+    ADD COLUMN IF NOT EXISTS hero_path VARCHAR(255) NULL AFTER logo_path,
+    ADD COLUMN IF NOT EXISTS storefront_message VARCHAR(255) NULL AFTER hero_path;

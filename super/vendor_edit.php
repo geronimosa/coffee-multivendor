@@ -2,11 +2,15 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../includes/integrations.php';
+require_once __DIR__ . '/../includes/vendor_theme.php';
 require_super_admin();
 
 $vendorId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?: null;
 $vendor = [
     'name' => '', 'slug' => '', 'status' => 'active', 'contact_email' => '', 'contact_phone' => '',
+    'theme_primary' => '#1F4D3A', 'theme_accent' => '#F2B84B', 'theme_background' => '#F7F5F0',
+    'theme_surface' => '#FFFFFF', 'theme_text' => '#17211C', 'logo_path' => null, 'hero_path' => null,
+    'storefront_message' => 'Order ahead and collect when it is ready.',
 ];
 $yoco = null;
 $twilio = null;
@@ -35,6 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $contactPhone = trim((string) ($_POST['contact_phone'] ?? ''));
     $ownerName = trim((string) ($_POST['owner_name'] ?? ''));
     $ownerEmail = strtolower(trim((string) ($_POST['owner_email'] ?? '')));
+    $themePrimary = valid_hex_color($_POST['theme_primary'] ?? null, '#1F4D3A');
+    $themeAccent = valid_hex_color($_POST['theme_accent'] ?? null, '#F2B84B');
+    $themeBackground = valid_hex_color($_POST['theme_background'] ?? null, '#F7F5F0');
+    $themeSurface = valid_hex_color($_POST['theme_surface'] ?? null, '#FFFFFF');
+    $themeText = valid_hex_color($_POST['theme_text'] ?? null, '#17211C');
+    $storefrontMessage = trim((string) ($_POST['storefront_message'] ?? ''));
 
     if ($name === '' || $slug === '') {
         $error = 'Vendor name and slug are required.';
@@ -82,6 +92,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $vendorId = (int) $pdo->lastInsertId();
                 $action = 'vendor.created';
             }
+
+            $logoPath = store_vendor_image($_FILES['logo'] ?? [], $vendorId, 'logo') ?: ($vendor['logo_path'] ?? null);
+            $heroPath = store_vendor_image($_FILES['hero'] ?? [], $vendorId, 'hero') ?: ($vendor['hero_path'] ?? null);
+            $stmt = $pdo->prepare('UPDATE restaurants SET theme_primary=?, theme_accent=?, theme_background=?, theme_surface=?, theme_text=?, logo_path=?, hero_path=?, storefront_message=? WHERE id=?');
+            $stmt->execute([$themePrimary, $themeAccent, $themeBackground, $themeSurface, $themeText, $logoPath, $heroPath, $storefrontMessage ?: null, $vendorId]);
 
             if (!empty($_POST['clear_yoco'])) {
                 delete_vendor_integration($pdo, $vendorId, 'yoco');
@@ -137,7 +152,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $vendor = compact('name', 'slug', 'status') + ['contact_email' => $contactEmail, 'contact_phone' => $contactPhone];
+    $vendor = compact('name', 'slug', 'status') + [
+        'contact_email' => $contactEmail, 'contact_phone' => $contactPhone,
+        'theme_primary' => $themePrimary, 'theme_accent' => $themeAccent,
+        'theme_background' => $themeBackground, 'theme_surface' => $themeSurface, 'theme_text' => $themeText,
+        'storefront_message' => $storefrontMessage,
+    ];
     $owner = ['name' => $ownerName, 'email' => $ownerEmail];
 }
 
@@ -149,7 +169,7 @@ require __DIR__ . '/_header.php';
 <div class="actions"><a class="button secondary" href="/super/">← Vendors</a><h1><?= e($pageTitle) ?></h1></div>
 <?php if ($flash): ?><div class="notice"><?= e($flash) ?></div><?php endif; ?>
 <?php if ($error): ?><div class="notice error"><?= e($error) ?></div><?php endif; ?>
-<form method="post" autocomplete="off">
+<form method="post" enctype="multipart/form-data" autocomplete="off">
 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) ($vendorId ?: 0) ?>">
 <section class="card"><h2>Vendor details</h2><div class="grid">
     <div><label for="name">Business name</label><input id="name" name="name" value="<?= e($vendor['name']) ?>" required></div>
@@ -157,6 +177,16 @@ require __DIR__ . '/_header.php';
     <div><label for="contact_email">Contact email</label><input id="contact_email" type="email" name="contact_email" value="<?= e($vendor['contact_email']) ?>"></div>
     <div><label for="contact_phone">Contact phone</label><input id="contact_phone" name="contact_phone" value="<?= e($vendor['contact_phone']) ?>"></div>
     <div><label for="status">Status</label><select id="status" name="status"><option value="active" <?= $vendor['status']==='active'?'selected':'' ?>>Active</option><option value="suspended" <?= $vendor['status']==='suspended'?'selected':'' ?>>Suspended</option></select></div>
+</div></section>
+<section class="card"><h2>Storefront appearance</h2><p class="muted">A restrained brand theme is applied to the customer menu, cart, checkout, and order status.</p><div class="grid">
+    <div><label for="theme_primary">Primary color</label><input id="theme_primary" type="color" name="theme_primary" value="<?= e($vendor['theme_primary']) ?>"></div>
+    <div><label for="theme_accent">Accent color</label><input id="theme_accent" type="color" name="theme_accent" value="<?= e($vendor['theme_accent']) ?>"></div>
+    <div><label for="theme_background">Page background</label><input id="theme_background" type="color" name="theme_background" value="<?= e($vendor['theme_background']) ?>"></div>
+    <div><label for="theme_surface">Card background</label><input id="theme_surface" type="color" name="theme_surface" value="<?= e($vendor['theme_surface']) ?>"></div>
+    <div><label for="theme_text">Text color</label><input id="theme_text" type="color" name="theme_text" value="<?= e($vendor['theme_text']) ?>"></div>
+    <div class="full"><label for="storefront_message">Storefront message</label><input id="storefront_message" name="storefront_message" maxlength="255" value="<?= e($vendor['storefront_message'] ?? '') ?>"></div>
+    <div><label for="logo">Logo image</label><input id="logo" type="file" name="logo" accept="image/png,image/jpeg,image/webp"><?php if (!empty($vendor['logo_path'])): ?><small>Current logo saved</small><?php endif; ?></div>
+    <div><label for="hero">Background/hero image</label><input id="hero" type="file" name="hero" accept="image/png,image/jpeg,image/webp"><?php if (!empty($vendor['hero_path'])): ?><small>Current hero saved</small><?php endif; ?></div>
 </div></section>
 <section class="card"><h2>Vendor owner</h2><p class="muted">The owner will be assigned as this vendor's administrator.</p><div class="grid">
     <div><label for="owner_name">Owner name</label><input id="owner_name" name="owner_name" value="<?= e($owner['name'] ?? '') ?>"></div>

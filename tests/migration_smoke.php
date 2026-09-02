@@ -28,16 +28,18 @@ try {
     }
     $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
 
-    $migration = file_get_contents(__DIR__ . '/../migrations/001_multivendor_foundation.sql');
-    if ($migration === false) throw new RuntimeException('Migration not found.');
-    $pdo->exec($migration);
+    foreach (glob(__DIR__ . '/../migrations/*.sql') ?: [] as $migrationFile) {
+        $migration = file_get_contents($migrationFile);
+        if ($migration === false) throw new RuntimeException('Migration not found: ' . $migrationFile);
+        $pdo->exec($migration);
+    }
 
     foreach (['vendor_integrations', 'audit_logs'] as $requiredTable) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?');
         $stmt->execute([$testDatabase, $requiredTable]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException('Missing table: ' . $requiredTable);
     }
-    foreach ([['restaurants', 'slug'], ['users', 'password_hash']] as [$table, $column]) {
+    foreach ([['restaurants', 'slug'], ['restaurants', 'theme_primary'], ['restaurants', 'hero_path'], ['users', 'password_hash']] as [$table, $column]) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name=? AND column_name=?');
         $stmt->execute([$testDatabase, $table, $column]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException("Missing column: $table.$column");
