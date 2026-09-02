@@ -283,6 +283,7 @@ def initialize_database(data_dir: Path) -> sqlite3.Connection:
     data_dir.mkdir(parents=True, exist_ok=True)
     database_path = data_dir / "edge.db"
     connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
     os.chmod(database_path, 0o600)
     connection.execute("PRAGMA foreign_keys = ON")
     schema_path = Path(__file__).with_name("schema.sql")

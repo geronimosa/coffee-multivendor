@@ -50,9 +50,9 @@ class SnapshotTests(unittest.TestCase):
             item = connection.execute("SELECT id, name, price, variant_options FROM menu_items").fetchone()
             state = connection.execute("SELECT value FROM edge_state WHERE key='snapshot_hash'").fetchone()
             connection.close()
-        self.assertEqual(vendor, (7, "test-coffee"))
-        self.assertEqual(item, (11, "Flat White", "32.00", json.dumps([], separators=(",", ":"))))
-        self.assertEqual(state, ("a" * 64,))
+        self.assertEqual(tuple(vendor), (7, "test-coffee"))
+        self.assertEqual(tuple(item), (11, "Flat White", "32.00", json.dumps([], separators=(",", ":"))))
+        self.assertEqual(tuple(state), ("a" * 64,))
 
     def test_wrong_vendor_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -70,7 +70,6 @@ class SnapshotTests(unittest.TestCase):
     def test_order_upload_acknowledgement_is_idempotent_locally(self):
         with tempfile.TemporaryDirectory() as directory:
             connection = agent.initialize_database(Path(directory))
-            connection.row_factory = sqlite3.Row
             agent.apply_snapshot(connection, {
                 "schema_version": 1,
                 "vendor": {
