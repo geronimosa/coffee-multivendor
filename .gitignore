@@ -9,6 +9,7 @@
 *.sql
 *.sql.gz
 !/migrations/*.sql
+!/edge/schema.sql
 *.png-errors.txt
 /includes/phpqrcode/temp/
 .DS_Store
