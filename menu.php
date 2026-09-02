@@ -3,8 +3,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/vendor_theme.php';
 session_start();
-$vendorId=filter_input(INPUT_GET,'rid',FILTER_VALIDATE_INT);if(!$vendorId){http_response_code(400);exit('Missing vendor.');}
-$stmt=$pdo->prepare("SELECT * FROM restaurants WHERE id=? AND status='active'");$stmt->execute([$vendorId]);$vendor=$stmt->fetch();if(!$vendor){http_response_code(404);exit('Storefront not found.');}
+$vendorId=filter_input(INPUT_GET,'rid',FILTER_VALIDATE_INT);$slug=trim((string)($_GET['slug']??''));if(!$vendorId&&$slug===''){http_response_code(400);exit('Missing vendor.');}
+$stmt=$pdo->prepare($vendorId?"SELECT * FROM restaurants WHERE id=? AND status='active'":"SELECT * FROM restaurants WHERE slug=? AND status='active'");$stmt->execute([$vendorId?:$slug]);$vendor=$stmt->fetch();if(!$vendor){http_response_code(404);exit('Storefront not found.');}$vendorId=(int)$vendor['id'];
 $stmt=$pdo->prepare('SELECT * FROM menu_items WHERE restaurant_id=? ORDER BY category,name');$stmt->execute([$vendorId]);$items=$stmt->fetchAll();$groups=[];foreach($items as $item)$groups[$item['category']?:'Menu'][]=$item;
 $cart=$_SESSION['carts'][$vendorId]??[];$cartCount=array_sum(array_column($cart,'qty'));$cartTotal=array_sum(array_map(fn($row)=>$row['qty']*$row['unit_price'],$cart));$logout=filter_input(INPUT_GET,'logout')?:'';
 ?>
