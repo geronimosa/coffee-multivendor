@@ -40,7 +40,9 @@ Completed and deployed:
 - Migration smoke test using a disposable database.
 - QRKiosk Edge phase-one foundation: one-time Pi enrollment, revocable per-device credentials, signed vendor/menu snapshots and a dependency-free SQLite sync agent.
 - Test Pi `home.local` enrolled for `vendor-1`; its one-minute sync timer and Gunicorn storefront are active. The temporary HTTP shopfront at `http://home.local/shop/vendor-1` supports validated local carts, checkout, Edge-owned UUID orders, manual payment and order status. HTTPS and split DNS are not configured yet.
-- Edge staff access at `http://home.local/vendor/vendor-1`: super-admin can create multiple named, expiring 10-character user keys per vendor; only hashes synchronize to the Pi, keys can be revoked independently, and fulfilment actions retain the acting username. The local queues support manual-payment confirmation and Pending -> Preparing -> Ready -> Collected -> Archived lifecycle controls.
+- Edge staff access at `http://home.local/vendor/vendor-1`: super-admin can create multiple named, optionally expiring 10-character user keys per vendor; only hashes synchronize to the Pi, keys can be revoked independently, and fulfilment actions retain the acting username. The local queues support manual-payment confirmation and Pending -> Preparing -> Ready -> Collected -> Archived lifecycle controls.
+- Edge order synchronization: new/changed local orders and staff events upload in signed, idempotent batches on the one-minute timer. The staff portal keeps sync controls/status under its Admin tab. A separate persistent daily reconciliation timer resends the complete local ledger around 03:00; the first live reconciliation preserved the central totals at two Edge orders and eight unique events with zero local records pending.
+- Central Edge staff-key management supports in-place Regenerate (the prior key becomes invalid after sync without adding another visible username row) and independent Revoke. Keys default to no expiry; an expiry remains optional.
 
 ## Applied database migrations
 
@@ -53,6 +55,7 @@ Verified in production:
 5. `005_vendor_description.sql`
 6. `006_edge_devices.sql`
 7. `007_edge_staff_access.sql`
+8. `008_edge_order_sync.sql`
 
 Do not modify an applied migration. Add the next numbered migration and run `php scripts/migrate.php` from the server git worktree before deploying code that depends on it.
 
@@ -117,9 +120,9 @@ Exclude from every commit and copy operation:
 
 Continue QRKiosk Edge phase two while keeping the old prototype available on ports 8080/8081:
 
-1. Add idempotent outbound Edge order, order-item and staff-event synchronization to the central server. Preserve the Edge UUID and attribute staff actions by the synchronized staff-key ID/username.
-2. Add retry state and conflict handling so an interrupted connection cannot duplicate a sale or regress a newer status.
-3. After outbound sync is verified, implement Yoco and then replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall.
+1. Implement central Yoco checkout coordination for Edge orders without copying merchant secrets to the Pi, including verified callbacks/polling and explicit manual-payment fallback when upstream internet is unavailable.
+2. Add payment reconciliation tests and ensure retries cannot create duplicate Yoco payments or regress a verified payment state.
+3. Replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall before stadium use.
 
 The agreed model and phased plan are documented in `docs/EDGE_ARCHITECTURE.md`. Yoco remains the only planned stadium gateway; when the Pi has no upstream internet, payment is manual and no card transaction is queued.
 
@@ -190,6 +193,11 @@ Latest pre-staff-access backups:
 - Central live files and database: `/home/steve/coffee_backups/pre_staff_20260902_224700/`
 - Pi installed code: `/home/steve/qrkiosk_backups/edge-code-before-staff-20260902.tar.gz`
 - Pi Edge database: `/var/lib/qrkiosk-edge/backups/edge-before-staff-20260902.db`
+
+Latest pre-order-sync backups:
+
+- Central live files and database: `/home/steve/coffee_backups/pre_order_sync_20260902_2300/`
+- Pi Edge database: `/var/lib/qrkiosk-edge/backups/edge-before-order-sync-20260902.db`
 
 Before each material deployment, create a new timestamped directory under `/home/steve/coffee_backups/` containing both a compressed live document-root archive and compressed database dump. Verify both files are non-empty before proceeding. Keep dumps outside the repository and web root.
 
