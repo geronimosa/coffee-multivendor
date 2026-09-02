@@ -28,7 +28,7 @@ Completed and deployed:
 - Super-admin account email corrected to `geronimosa@gmail.com`; never place its password in source or this file.
 - Vendor create/edit UI with owner assignment, active/suspended status and contact details.
 - Vendor-specific storefront themes: primary/accent/background/surface/text colors, logo, hero image and storefront message.
-- Sanitized rich-text vendor introductions, editable by super-admin and shown on customer storefronts and staff portals.
+- Sanitized rich-text vendor introductions, editable by super-admin and shown as a footer on customer storefronts and staff portals.
 - Compact phone/tablet customer menu, cart and checkout layout.
 - Cart routes corrected to use absolute URLs.
 - Compact phone/tablet fulfilment queues: Pending, Preparing, Ready, Collected and Archived.
