@@ -93,22 +93,26 @@ function edge_authorized_device(PDO $pdo): ?array
 {
     $deviceIdentifier = trim((string) ($_SERVER['HTTP_X_QRKIOSK_DEVICE'] ?? ''));
     $authorization = trim((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
-    if (!preg_match('/^[a-f0-9]{32}$/', $deviceIdentifier) || !preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
+    $presentedSecret = trim((string) ($_SERVER['HTTP_X_QRKIOSK_SECRET'] ?? ''));
+    if ($presentedSecret === '' && preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
+        $presentedSecret = $matches[1];
+    }
+    if (!preg_match('/^[a-f0-9]{32}$/', $deviceIdentifier) || $presentedSecret === '') {
         return null;
     }
 
     $stmt = $pdo->prepare('SELECT * FROM edge_devices WHERE device_identifier=? AND status=\'active\' LIMIT 1');
     $stmt->execute([$deviceIdentifier]);
     $device = $stmt->fetch();
-    if (!$device || !hash_equals((string) $device['credential_hash'], edge_secret_hash($matches[1]))) {
+    if (!$device || !hash_equals((string) $device['credential_hash'], edge_secret_hash($presentedSecret))) {
         return null;
     }
 
     $credentials = decrypt_secret_array((string) $device['encrypted_credential']);
-    if (!isset($credentials['device_secret']) || !hash_equals((string) $credentials['device_secret'], $matches[1])) {
+    if (!isset($credentials['device_secret']) || !hash_equals((string) $credentials['device_secret'], $presentedSecret)) {
         return null;
     }
-    $device['device_secret'] = $matches[1];
+    $device['device_secret'] = $presentedSecret;
     return $device;
 }
 

@@ -193,6 +193,7 @@ def sync(args: argparse.Namespace) -> None:
         headers={
             "Authorization": "Bearer " + config["device_secret"],
             "X-QRKiosk-Device": config["device_id"],
+            "X-QRKiosk-Secret": config["device_secret"],
         },
     )
     signature = headers.get("X-QRKiosk-Signature", "")
