@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/env.php';
+load_environment(dirname(__DIR__) . '/.env');
 
 
 

@@ -1,0 +1,8 @@
+Options -Indexes
+
+<FilesMatch "(^\.|\.(sql|log)(\.gz)?$)">
+    Require all denied
+</FilesMatch>
+
+RewriteEngine On
+RewriteRule ^(?:migrations|scripts)(?:/|$) - [F,L]

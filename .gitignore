@@ -7,6 +7,7 @@
 *.log
 *.sql
 *.sql.gz
+!/migrations/*.sql
 *.png-errors.txt
 /includes/phpqrcode/temp/
 .DS_Store
