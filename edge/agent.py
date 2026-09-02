@@ -130,7 +130,9 @@ def enroll(args: argparse.Namespace) -> None:
 
 def initialize_database(data_dir: Path) -> sqlite3.Connection:
     data_dir.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(data_dir / "edge.db")
+    database_path = data_dir / "edge.db"
+    connection = sqlite3.connect(database_path)
+    os.chmod(database_path, 0o600)
     connection.execute("PRAGMA foreign_keys = ON")
     schema_path = Path(__file__).with_name("schema.sql")
     connection.executescript(schema_path.read_text(encoding="utf-8"))
