@@ -21,6 +21,8 @@ Enroll interactively so the one-time key is not saved in shell history:
 sudo -u qrkiosk-edge /opt/qrkiosk-edge/agent.py enroll --server https://coffee.tatu.co.za
 ```
 
+For managed installation, pass a mode `0600` file with `--key-file`; it is removed automatically only after successful enrollment.
+
 Synchronize and inspect status:
 
 ```bash

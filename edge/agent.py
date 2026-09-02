@@ -94,7 +94,13 @@ def load_config(data_dir: Path) -> dict:
 
 def enroll(args: argparse.Namespace) -> None:
     server = require_secure_server(args.server, args.allow_http)
-    enrollment_key = args.key or getpass.getpass("One-time enrollment key: ")
+    if args.key_file:
+        try:
+            enrollment_key = args.key_file.read_text(encoding="utf-8").strip()
+        except OSError as exception:
+            raise EdgeError(f"Unable to read the enrollment key file: {exception}") from None
+    else:
+        enrollment_key = args.key or getpass.getpass("One-time enrollment key: ")
     status, _, raw = api_request(
         urljoin(server, "api/edge/enroll.php"),
         method="POST",
@@ -117,6 +123,8 @@ def enroll(args: argparse.Namespace) -> None:
     if not all(isinstance(value, str) and value for value in config.values()):
         raise EdgeError("Enrollment returned incomplete credentials.")
     write_private_json(args.data_dir / "device.json", config)
+    if args.key_file:
+        args.key_file.unlink(missing_ok=True)
     print(f"Enrolled for vendor {config['vendor_slug']} as device {config['device_id']}.")
 
 
@@ -229,7 +237,9 @@ def parser() -> argparse.ArgumentParser:
 
     enroll_parser = subcommands.add_parser("enroll", help="Enroll this Pi with a one-time key.")
     enroll_parser.add_argument("--server", required=True)
-    enroll_parser.add_argument("--key", help="Prefer the secure prompt to avoid shell history.")
+    key_input = enroll_parser.add_mutually_exclusive_group()
+    key_input.add_argument("--key", help="Prefer the secure prompt to avoid shell history.")
+    key_input.add_argument("--key-file", type=Path, help="Read and remove a protected key file after successful enrollment.")
     enroll_parser.add_argument("--device-name")
     enroll_parser.add_argument("--allow-http", action="store_true", help=argparse.SUPPRESS)
     enroll_parser.set_defaults(handler=enroll)
