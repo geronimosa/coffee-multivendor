@@ -125,7 +125,7 @@ require __DIR__ . '/_header.php';
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>">
         <div class="grid">
             <div><label for="username">Username</label><input id="username" name="username" minlength="2" maxlength="50" pattern="[A-Za-z0-9._-]+" required placeholder="e.g. steve"></div>
-            <div><label for="valid_days">Valid for days</label><input id="valid_days" type="number" name="valid_days" min="1" max="365" value="30" required></div>
+            <div><label for="valid_days">Valid for days <span class="muted">(optional)</span></label><input id="valid_days" type="number" name="valid_days" min="1" max="365" placeholder="Leave blank to never expire"></div>
         </div>
         <button type="submit" name="create_staff_access" value="1">Create staff key</button>
     </form>
