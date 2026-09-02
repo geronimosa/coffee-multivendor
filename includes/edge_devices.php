@@ -19,13 +19,16 @@ function edge_sign_payload(string $body, string $secret): string
 function create_edge_enrollment_token(PDO $pdo, int $vendorId, int $userId): array
 {
     $token = 'edge_' . edge_base64url_encode(random_bytes(24));
-    $expiresAt = (new DateTimeImmutable('+30 minutes'))->format('Y-m-d H:i:s');
 
     $pdo->beginTransaction();
     try {
         $pdo->prepare('UPDATE edge_enrollment_tokens SET used_at=NOW() WHERE vendor_id=? AND used_at IS NULL')->execute([$vendorId]);
-        $stmt = $pdo->prepare('INSERT INTO edge_enrollment_tokens (vendor_id, token_hash, expires_at, created_by) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$vendorId, edge_secret_hash($token), $expiresAt, $userId]);
+        $stmt = $pdo->prepare('INSERT INTO edge_enrollment_tokens (vendor_id, token_hash, expires_at, created_by) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE), ?)');
+        $stmt->execute([$vendorId, edge_secret_hash($token), $userId]);
+        $enrollmentId = (int) $pdo->lastInsertId();
+        $stmt = $pdo->prepare('SELECT expires_at FROM edge_enrollment_tokens WHERE id=?');
+        $stmt->execute([$enrollmentId]);
+        $expiresAt = (string) $stmt->fetchColumn();
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) $pdo->rollBack();
