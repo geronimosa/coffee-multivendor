@@ -10,6 +10,8 @@
 *.sql.gz
 !/migrations/*.sql
 !/edge/schema.sql
+__pycache__/
+*.py[cod]
 *.png-errors.txt
 /includes/phpqrcode/temp/
 .DS_Store
