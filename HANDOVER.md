@@ -39,6 +39,7 @@ Completed and deployed:
 - Audit log foundation, password setup tokens and migration runner.
 - Migration smoke test using a disposable database.
 - QRKiosk Edge phase-one foundation: one-time Pi enrollment, revocable per-device credentials, signed vendor/menu snapshots and a dependency-free SQLite sync agent.
+- Test Pi `home.local` enrolled for `vendor-1`; its one-minute sync timer and Gunicorn storefront are active. Temporary LAN access is `http://home.local/shop/vendor-1`; HTTPS and split DNS are not configured yet.
 
 ## Applied database migrations
 
@@ -112,14 +113,13 @@ Exclude from every commit and copy operation:
 
 ## Exact next development task
 
-Build QRKiosk Edge phase two without replacing the running Pi prototype yet:
+Continue QRKiosk Edge phase two while keeping the old prototype available on ports 8080/8081:
 
-1. Enroll the test Pi for its confirmed vendor slug and verify signed snapshot synchronization.
-2. Build the production local storefront and staff fulfilment service around the mirrored SQLite data.
-3. Use the same `/shop/{slug}` and `/vendor/{slug}` paths as Cloud and reject any slug other than the provisioned vendor.
-4. Add local Edge orders with immutable UUID, device identity and explicit manual-payment state.
-5. Add idempotent outbound order synchronization before implementing Yoco.
-6. Replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall.
+1. Add local carts and Edge order creation to the new `/shop/vendor-1` storefront.
+2. Build the new `/vendor/vendor-1` staff fulfilment view around the Edge database.
+3. Record immutable order UUID, origin device and explicit manual-payment state.
+4. Add idempotent outbound order/status synchronization before implementing Yoco.
+5. Replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall.
 
 The agreed model and phased plan are documented in `docs/EDGE_ARCHITECTURE.md`. Yoco remains the only planned stadium gateway; when the Pi has no upstream internet, payment is manual and no card transaction is queued.
 
