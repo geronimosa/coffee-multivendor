@@ -30,4 +30,23 @@ th,td { padding:.75rem; text-align:left; border-bottom:1px solid var(--line); }
 .payment-badge.paid { color:#146c2e; background:#dff5e5; border:1px solid #83d49a; }
 .payment-badge.unpaid { color:#9b2020; background:#fde5e5; border:1px solid #ef9a9a; }
 .payment-badge.counter { color:#875800; background:#fff0c7; border:1px solid #e8bd58; }
+.staff-queue { font-size:14px; line-height:1.35; }
+.staff-queue .topbar { padding:.55rem .8rem; }
+.staff-queue .container { width:min(1180px,calc(100% - 1rem)); margin:.65rem auto; }
+.fulfilment-head { justify-content:space-between; margin-bottom:.35rem; }
+.fulfilment-head h1 { margin:0; font-size:1.2rem; }
+.fulfilment-head p { margin:.05rem 0 0; font-size:.75rem; }
+.fulfilment-head .button { padding:.45rem .65rem; font-size:.8rem; }
+.staff-queue .queue-tabs { gap:.3rem; padding:.15rem 0 .5rem; margin:0; scrollbar-width:thin; }
+.staff-queue .queue-tab { gap:.3rem; padding:.38rem .55rem; border-radius:8px; font-size:.8rem; }
+.staff-queue .queue-tab span { min-width:1.2rem; padding:0 .3rem; font-size:.72rem; }
+.staff-queue .order-card { padding:.65rem .75rem; margin-bottom:.45rem; border-radius:8px; box-shadow:0 2px 8px rgba(45,31,22,.04); }
+.order-heading { justify-content:space-between; flex-wrap:nowrap; gap:.5rem; }
+.order-heading h2 { margin:.2rem 0 0; font-size:1rem; line-height:1.15; }
+.order-total { white-space:nowrap; font-size:1rem; }
+.staff-queue .badge,.staff-queue .payment-badge { padding:.12rem .4rem; font-size:.67rem; }
+.order-items { margin:.4rem 0; font-size:.82rem; line-height:1.25; }
+.order-actions { gap:.35rem; }
+.order-actions button { padding:.42rem .65rem; border-radius:6px; font-size:.78rem; }
 @media (max-width:700px) { .grid { grid-template-columns:1fr; } .full { grid-column:auto; } .topbar { align-items:flex-start; } }
+@media (max-width:700px) { .staff-queue .topbar { align-items:center; } .staff-queue .container { width:calc(100% - .6rem); margin:.35rem auto; } .fulfilment-head { flex-wrap:nowrap; } .fulfilment-head p { display:none; } .staff-queue .queue-tabs { position:sticky; top:0; z-index:5; background:var(--cream); } .staff-queue .order-card { padding:.55rem .6rem; } .order-items { display:-webkit-box; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; } .order-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; } .order-actions button { width:100%; padding:.48rem .55rem; } }
