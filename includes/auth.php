@@ -36,10 +36,18 @@ function require_super_admin(): void
     if (empty($_SESSION['user_id'])) {
         redirect('/super/login.php');
     }
-    if (($_SESSION['user_role'] ?? '') !== 'super_admin') {
+
+    global $pdo;
+    $stmt = $pdo->prepare('SELECT role, active FROM users WHERE id=? LIMIT 1');
+    $stmt->execute([(int) $_SESSION['user_id']]);
+    $account = $stmt->fetch();
+    if (!$account || !(int) $account['active'] || $account['role'] !== 'super_admin') {
+        logout_user();
         http_response_code(403);
         exit('Access denied.');
     }
+
+    $_SESSION['user_role'] = $account['role'];
 }
 
 function audit_log(PDO $pdo, string $action, ?string $entityType = null, ?string $entityId = null, ?int $vendorId = null, array $metadata = []): void
