@@ -1,0 +1,20 @@
+[Unit]
+Description=QRKiosk Edge vendor snapshot synchronization
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=qrkiosk-edge
+Group=qrkiosk-edge
+StateDirectory=qrkiosk-edge
+StateDirectoryMode=0700
+ExecStart=/opt/qrkiosk-edge/agent.py sync
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/qrkiosk-edge
+
+[Install]
+WantedBy=multi-user.target

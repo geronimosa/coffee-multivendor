@@ -38,6 +38,7 @@ Completed and deployed:
 - Vendor overview with customer shop, staff portal and edit actions.
 - Audit log foundation, password setup tokens and migration runner.
 - Migration smoke test using a disposable database.
+- QRKiosk Edge phase-one foundation: one-time Pi enrollment, revocable per-device credentials, signed vendor/menu snapshots and a dependency-free SQLite sync agent.
 
 ## Applied database migrations
 
@@ -48,6 +49,7 @@ Verified in production:
 3. `003_password_setup_tokens.sql`
 4. `004_order_payment_status.sql`
 5. `005_vendor_description.sql`
+6. `006_edge_devices.sql`
 
 Do not modify an applied migration. Add the next numbered migration and run `php scripts/migrate.php` from the server git worktree before deploying code that depends on it.
 
@@ -110,19 +112,16 @@ Exclude from every commit and copy operation:
 
 ## Exact next development task
 
-Implement the first production-grade Yoco payment flow end to end:
+Build QRKiosk Edge phase two without replacing the running Pi prototype yet:
 
-1. Read the enabled vendor's encrypted Yoco configuration through `vendor_integrations`.
-2. Create a server-side Yoco checkout for the exact order amount and immutable order/vendor reference.
-3. Store a payment-attempt record rather than trusting browser redirects.
-4. Add a vendor-resolving webhook endpoint with signature/authenticity verification and idempotent event handling.
-5. Mark an order paid only from verified server-to-server payment confirmation.
-6. Preserve pay-at-counter as a separate choice.
-7. Add reconciliation fields/events suitable for the future accounting ledger.
-8. Add tests for wrong vendor, altered amount, duplicate webhook, invalid signature, failed payment and successful payment.
-9. Test with Yoco test credentials before enabling any live key.
+1. Enroll the test Pi for its confirmed vendor slug and verify signed snapshot synchronization.
+2. Build the production local storefront and staff fulfilment service around the mirrored SQLite data.
+3. Use the same `/shop/{slug}` and `/vendor/{slug}` paths as Cloud and reject any slug other than the provisioned vendor.
+4. Add local Edge orders with immutable UUID, device identity and explicit manual-payment state.
+5. Add idempotent outbound order synchronization before implementing Yoco.
+6. Replace the prototype's broad forwarding/captive-portal rules with split DNS, local HTTPS and a restricted customer firewall.
 
-Do not start Zapper or refactor SnapScan until the payment-attempt model and Yoco verification pattern are established, because the same model should support all gateways.
+The agreed model and phased plan are documented in `docs/EDGE_ARCHITECTURE.md`. Yoco remains the only planned stadium gateway; when the Pi has no upstream internet, payment is manual and no card transaction is queued.
 
 ## Safe development and testing
 

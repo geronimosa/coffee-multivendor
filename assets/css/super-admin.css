@@ -32,6 +32,11 @@ button,.button { display:inline-block; padding:.7rem 1rem; border:0; border-radi
 .staff-page { min-height:100vh; display:flex; flex-direction:column; }
 .staff-page .container { flex:1; display:flex; flex-direction:column; }
 .staff-page .vendor-footer { margin-top:auto; margin-bottom:0; }
+.device-details { display:grid; grid-template-columns:max-content 1fr; gap:.6rem 1rem; }
+.device-details dt { font-weight:700; }
+.device-details dd { margin:0; overflow-wrap:anywhere; }
+.enrollment-key { display:block; padding:1rem; border:1px dashed var(--coffee); border-radius:8px; background:#fff9e8; font-size:1rem; overflow-wrap:anywhere; user-select:all; }
+.danger-button { background:var(--danger); }
 table { width:100%; border-collapse:collapse; background:#fff; }
 th,td { padding:.75rem; text-align:left; border-bottom:1px solid var(--line); }
 .badge { display:inline-block; border-radius:999px; padding:.2rem .55rem; background:#e7f6ea; color:#1d6330; font-size:.8rem; font-weight:700; }
