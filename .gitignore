@@ -1,0 +1,12 @@
+/.env
+/.env.*
+!/.env.example
+/vendor/
+/images/
+/tmp/
+*.log
+*.sql
+*.sql.gz
+*.png-errors.txt
+/includes/phpqrcode/temp/
+.DS_Store

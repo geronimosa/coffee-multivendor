@@ -1,0 +1,194 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans&family=Merriweather:wght@700&display=swap');
+
+body {
+    font-family: 'Open Sans', sans-serif;
+    background-color: #F5F3F0;
+    color: #2C1B13;
+    margin: 0;
+    padding: 20px;
+    overflow-x: hidden;
+}
+
+h1, h2, h3 {
+    font-family: 'Merriweather', serif;
+    color: #6F4E37;
+}
+
+button, input[type="submit"] {
+    background-color: #6F4E37;
+    color: white;
+    border: none;
+    padding: 4px 5px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+button:hover {
+    background-color: #A9745B;
+}
+
+table {
+    width: 100%;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    border-collapse: collapse;
+}
+
+table td, table th {
+    padding: 10px;
+    text-align: left;
+}
+
+input, select, textarea {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+a {
+    color: #6F4E37;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+label {
+    font-weight: bold;
+    display: block;
+    margin-top: 15px;
+}
+
+{
+    body {
+        padding: 10px;
+    }
+
+    h1, h2, h3 {
+        font-size: 1.2rem;
+    }
+
+    button, input[type="submit"] {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        font-size: 0.95rem;
+    }
+
+    table thead {
+        display: none;
+    }
+
+    table tr {
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    table td {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+    }
+
+    table td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        flex-basis: 40%;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    h1, h2, h3 {
+        font-size: 1.2rem;
+    }
+
+    button, input[type="submit"] {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    table {
+        width: 100%;
+        overflow-x: auto;
+        display: block;
+    }
+
+    table td, table th {
+        font-size: 0.95rem;
+        white-space: nowrap;
+    }
+
+    select, input[type="number"] {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+.back-to-menu {
+    display: inline-block;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background-color: #6F4E37;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.back-to-menu:hover {
+    background-color: #A9745B;
+}
+
+#variant-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.variant-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background-color: #f2eee9;
+    padding: 10px;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.variant-row input[type="text"],
+.variant-row input[type="number"] {
+    flex: 1 1 40%;
+    min-width: 100px;
+}
+
+.variant-row button {
+    background-color: #6F4E37;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: bold;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.variant-row button:hover {
+    background-color: #A9745B;
+}
