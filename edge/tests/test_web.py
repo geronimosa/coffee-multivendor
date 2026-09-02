@@ -149,7 +149,7 @@ class StorefrontTests(unittest.TestCase):
         self.assertEqual(events, [("test.staff", 91)] * 5)
 
         revoked = self.client.get("/vendor/test-coffee")
-        self.assertIn(b"Staff key", revoked.data)
+        self.assertIn(b"Staff access has not been configured", revoked.data)
         self.assertNotIn(b"Fulfilment queue", revoked.data)
 
     def test_other_vendor_slug_is_rejected(self):
