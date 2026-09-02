@@ -20,7 +20,12 @@ from flask import Flask, abort, g, jsonify, redirect, render_template, request, 
 DATA_DIR = Path(os.environ.get("QRKIOSK_EDGE_DATA_DIR", "/var/lib/qrkiosk-edge"))
 DATABASE = DATA_DIR / "edge.db"
 
-app = Flask(__name__)
+EDGE_APP_DIR = Path(__file__).resolve().parent
+app = Flask(
+    __name__,
+    template_folder=str(EDGE_APP_DIR / "templates"),
+    static_folder=str(EDGE_APP_DIR / "static"),
+)
 app.config.update(
     SESSION_COOKIE_NAME="qrkiosk_edge_session",
     SESSION_COOKIE_HTTPONLY=True,
