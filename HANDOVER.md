@@ -51,6 +51,7 @@ Verified in production:
 4. `004_order_payment_status.sql`
 5. `005_vendor_description.sql`
 6. `006_edge_devices.sql`
+7. `007_edge_staff_access.sql`
 
 Do not modify an applied migration. Add the next numbered migration and run `php scripts/migrate.php` from the server git worktree before deploying code that depends on it.
 

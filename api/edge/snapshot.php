@@ -41,9 +41,22 @@ foreach ($stmt->fetchAll() as $item) {
     ];
 }
 
+$stmt = $pdo->prepare(
+    "SELECT id,username,key_hash,UNIX_TIMESTAMP(expires_at) AS expires_at_epoch FROM edge_staff_access_keys
+     WHERE vendor_id=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) ORDER BY id"
+);
+$stmt->execute([(int) $device['vendor_id']]);
+$staffAccessKeys = array_map(static fn(array $key): array => [
+    'id' => (int) $key['id'],
+    'username' => (string) $key['username'],
+    'key_hash' => (string) $key['key_hash'],
+    'expires_at_epoch' => $key['expires_at_epoch'] === null ? null : (int) $key['expires_at_epoch'],
+], $stmt->fetchAll());
+
 $snapshot = [
     'schema_version' => 1,
     'generated_at' => gmdate('c'),
+    'staff_access_keys' => $staffAccessKeys,
     'vendor' => $vendor,
     'menu_items' => $items,
 ];

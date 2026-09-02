@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ except ImportError:
     FLASK_AVAILABLE = False
 
 EDGE_DIR = Path(__file__).resolve().parents[1]
+STAFF_CODE = "staff_test-access-code"
 
 
 def load_module(name, path):
@@ -48,6 +50,12 @@ class StorefrontTests(unittest.TestCase):
                 "schema_version": 1,
                 "generated_at": "2026-09-02T20:00:00Z",
                 "snapshot_hash": "b" * 64,
+                "staff_access_keys": [{
+                    "id": 91,
+                    "username": "test.staff",
+                    "key_hash": hashlib.sha256(STAFF_CODE.encode("utf-8")).hexdigest(),
+                    "expires_at_epoch": 2_000_000_000,
+                }],
                 "vendor": {
                     "id": 7, "name": "Test Coffee", "slug": "test-coffee", "status": "active",
                     "contact_email": None, "contact_phone": None, "theme_primary": "#112233",
@@ -76,25 +84,24 @@ class StorefrontTests(unittest.TestCase):
         self.assertIsNotNone(match)
         return match.group(1).decode()
 
-    def test_local_manual_order_is_recorded_with_edge_ownership(self):
+    def create_order(self):
         shop = self.client.get("/shop/test-coffee")
-        self.assertEqual(shop.status_code, 200)
-        self.assertIn(b"quantity_11", shop.data)
-        cart = self.client.post(
+        self.client.post(
             "/cart.php",
             data={
                 "csrf_token": self.csrf(shop), "slug": "test-coffee",
                 "variant_11": "Standard", "quantity_11": "2",
             },
-            follow_redirects=True,
         )
-        self.assertIn(b"R64.00", cart.data)
         checkout = self.client.get("/checkout.php")
-        order = self.client.post(
+        return self.client.post(
             "/confirm_order.php",
             data={"csrf_token": self.csrf(checkout), "name": "Test Customer", "phone": "0700000000"},
             follow_redirects=True,
         )
+
+    def test_local_manual_order_is_recorded_with_edge_ownership(self):
+        order = self.create_order()
         self.assertEqual(order.status_code, 200)
         self.assertIn(b"Pay at counter", order.data)
         connection = sqlite3.connect(self.data_dir / "edge.db")
@@ -103,6 +110,47 @@ class StorefrontTests(unittest.TestCase):
         ).fetchone()
         connection.close()
         self.assertEqual(saved, ("edge", "a" * 32, "64.00", "manual", "unpaid"))
+
+    def test_staff_can_fulfil_manual_order_and_key_revocation_ends_session(self):
+        self.create_order()
+        login = self.client.get("/vendor/test-coffee")
+        self.assertIn(b"Staff key", login.data)
+        rejected = self.client.post(
+            "/vendor/test-coffee",
+            data={"csrf_token": self.csrf(login), "access_code": "wrong"},
+        )
+        self.assertIn(b"incorrect", rejected.data)
+        accepted = self.client.post(
+            "/vendor/test-coffee",
+            data={"csrf_token": self.csrf(rejected), "access_code": STAFF_CODE},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Fulfilment queue", accepted.data)
+        self.assertIn(b"Test Customer", accepted.data)
+
+        for action in ("preparing", "confirm_payment", "complete", "collected", "archived"):
+            page = self.client.get("/vendor/test-coffee")
+            response = self.client.post(
+                "/vendor/test-coffee/order",
+                data={"csrf_token": self.csrf(page), "order_id": "1", "action": action},
+            )
+            self.assertEqual(response.status_code, 303)
+
+        connection = sqlite3.connect(self.data_dir / "edge.db")
+        saved = connection.execute("SELECT status,payment_status,paid_at FROM orders WHERE id=1").fetchone()
+        events = connection.execute(
+            "SELECT actor,remote_staff_key_id FROM edge_order_events WHERE order_id=1 ORDER BY id"
+        ).fetchall()
+        connection.execute("DELETE FROM edge_staff_access_keys WHERE id=91")
+        connection.commit()
+        connection.close()
+        self.assertEqual(saved[:2], ("archived", "paid"))
+        self.assertIsNotNone(saved[2])
+        self.assertEqual(events, [("test.staff", 91)] * 5)
+
+        revoked = self.client.get("/vendor/test-coffee")
+        self.assertIn(b"Staff key", revoked.data)
+        self.assertNotIn(b"Fulfilment queue", revoked.data)
 
     def test_other_vendor_slug_is_rejected(self):
         self.assertEqual(self.client.get("/shop/another-vendor").status_code, 404)

@@ -12,6 +12,7 @@ import secrets
 import sqlite3
 from datetime import datetime, timezone
 from decimal import Decimal
+import time
 import uuid
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
@@ -137,6 +138,30 @@ def verified_cart() -> list[dict]:
             }
         )
     return verified
+
+
+def edge_state(key: str) -> str:
+    row = database().execute("SELECT value FROM edge_state WHERE key=?", (key,)).fetchone()
+    return str(row["value"]) if row else ""
+
+
+def staff_identity(slug: str) -> sqlite3.Row | None:
+    if session.get("staff_vendor_slug") != slug:
+        return None
+    try:
+        key_id = int(session.get("staff_key_id", 0))
+    except (TypeError, ValueError):
+        return None
+    staff_key = database().execute(
+        "SELECT id,username,key_hash FROM edge_staff_access_keys "
+        "WHERE id=? AND (expires_at_epoch IS NULL OR expires_at_epoch>?)",
+        (key_id, int(time.time())),
+    ).fetchone()
+    if staff_key is None or not hmac.compare_digest(
+        str(session.get("staff_key_hash", "")), str(staff_key["key_hash"])
+    ):
+        return None
+    return staff_key
 
 
 @app.get("/")
@@ -289,6 +314,144 @@ def order_status():
         (order["id"],),
     ).fetchall()
     return render_template("order_status.html", vendor=assigned_vendor(), order=order, items=items)
+
+
+STAFF_TABS = {
+    "pending": ("Pending", "status='pending'"),
+    "preparing": ("Preparing", "status='preparing'"),
+    "ready": ("Ready", "status='complete'"),
+    "collected": ("Collected", "status='collected'"),
+    "archived": ("Archived", "status IN ('archived','cancelled')"),
+}
+
+
+@app.route("/vendor/<slug>", methods=["GET", "POST"])
+def staff_portal(slug: str):
+    vendor = assigned_vendor()
+    if slug != vendor["slug"]:
+        abort(404)
+    error = None
+    if request.method == "POST":
+        require_csrf()
+        supplied_hash = hashlib.sha256(request.form.get("access_code", "").strip().encode("utf-8")).hexdigest()
+        matched_key = None
+        for staff_key in database().execute(
+            "SELECT id,username,key_hash FROM edge_staff_access_keys "
+            "WHERE expires_at_epoch IS NULL OR expires_at_epoch>?",
+            (int(time.time()),),
+        ).fetchall():
+            if hmac.compare_digest(str(staff_key["key_hash"]), supplied_hash):
+                matched_key = staff_key
+        if matched_key is not None:
+            session.clear()
+            session["staff_vendor_slug"] = slug
+            session["staff_key_id"] = matched_key["id"]
+            session["staff_key_hash"] = matched_key["key_hash"]
+            session["staff_username"] = matched_key["username"]
+            return redirect(url_for("staff_portal", slug=slug), code=303)
+        time.sleep(0.35)
+        error = "The staff key is incorrect or no longer active."
+
+    staff = staff_identity(slug)
+    if staff is None:
+        access_ready = database().execute(
+            "SELECT 1 FROM edge_staff_access_keys WHERE expires_at_epoch IS NULL OR expires_at_epoch>? LIMIT 1",
+            (int(time.time()),),
+        ).fetchone() is not None
+        return render_template("staff_login.html", vendor=vendor, error=error, access_ready=access_ready)
+
+    tab = request.args.get("tab", "pending")
+    if tab not in STAFF_TABS:
+        tab = "pending"
+    counts = {
+        key: database().execute(f"SELECT COUNT(*) FROM orders WHERE {where}").fetchone()[0]
+        for key, (_label, where) in STAFF_TABS.items()
+    }
+    orders = database().execute(
+        f"SELECT * FROM orders WHERE {STAFF_TABS[tab][1]} ORDER BY created_at ASC"
+    ).fetchall()
+    order_rows = []
+    for order in orders:
+        items = database().execute(
+            "SELECT item_name,variant_label,quantity FROM order_items WHERE order_id=? ORDER BY id", (order["id"],)
+        ).fetchall()
+        order_rows.append({"order": order, "items": items})
+    return render_template(
+        "staff_portal.html", vendor=vendor, tabs=STAFF_TABS, active_tab=tab,
+        counts=counts, order_rows=order_rows, staff=staff,
+    )
+
+
+@app.post("/vendor/<slug>/order")
+def update_edge_order(slug: str):
+    vendor = assigned_vendor()
+    staff = staff_identity(slug)
+    if slug != vendor["slug"] or staff is None:
+        abort(403)
+    require_csrf()
+    try:
+        order_id = int(request.form.get("order_id", "0"))
+    except ValueError:
+        abort(400)
+    action = request.form.get("action", "")
+    connection = database()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        order = connection.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
+        if order is None:
+            abort(404)
+        current = order["status"]
+        payment_status = order["payment_status"]
+        next_status = current
+        next_payment = payment_status
+        paid_at = order["paid_at"]
+        valid = False
+        if action == "confirm_payment" and order["payment_method"] == "manual" and payment_status != "paid" and current in {"pending", "preparing", "complete"}:
+            next_payment = "paid"
+            paid_at = now
+            valid = True
+        elif action == "preparing" and current == "pending":
+            next_status = "preparing"
+            valid = True
+        elif action == "complete" and current == "preparing":
+            next_status = "complete"
+            valid = True
+        elif action == "collected" and current == "complete" and payment_status == "paid":
+            next_status = "collected"
+            valid = True
+        elif action == "archived" and current in {"collected", "cancelled"}:
+            next_status = "archived"
+            valid = True
+        elif action == "cancelled" and current in {"pending", "preparing", "complete"}:
+            next_status = "cancelled"
+            valid = True
+        if not valid:
+            connection.rollback()
+            abort(409, "That order action is not currently allowed.")
+        connection.execute(
+            "UPDATE orders SET status=?,payment_status=?,paid_at=?,updated_at=?,synced_at=NULL WHERE id=?",
+            (next_status, next_payment, paid_at, now, order_id),
+        )
+        connection.execute(
+            "INSERT INTO edge_order_events (event_uuid,order_id,action,from_status,to_status,payment_status,actor,remote_staff_key_id,created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(uuid.uuid4()), order_id, action, current, next_status, next_payment, staff["username"], staff["id"], now),
+        )
+        connection.commit()
+    except Exception:
+        if connection.in_transaction:
+            connection.rollback()
+        raise
+    tab_for_status = {"pending": "pending", "preparing": "preparing", "complete": "ready", "collected": "collected", "archived": "archived", "cancelled": "archived"}
+    return redirect(url_for("staff_portal", slug=slug, tab=tab_for_status[next_status]), code=303)
+
+
+@app.post("/vendor/<slug>/logout")
+def staff_logout(slug: str):
+    require_csrf()
+    session.pop("staff_vendor_slug", None)
+    return redirect(url_for("staff_portal", slug=slug), code=303)
 
 
 @app.get("/health")

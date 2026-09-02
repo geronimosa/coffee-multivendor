@@ -38,6 +38,50 @@ function create_edge_enrollment_token(PDO $pdo, int $vendorId, int $userId): arr
     return ['token' => $token, 'expires_at' => $expiresAt];
 }
 
+function generate_edge_staff_key(): string
+{
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    $key = '';
+    for ($index = 0; $index < 10; $index++) {
+        $key .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+    }
+    return $key;
+}
+
+function create_edge_staff_access_key(PDO $pdo, int $vendorId, int $userId, string $username, ?int $validDays): array
+{
+    $username = trim($username);
+    if (!preg_match('/^[A-Za-z0-9._-]{2,50}$/', $username)) {
+        throw new InvalidArgumentException('Username must be 2 to 50 letters, numbers, dots, dashes, or underscores.');
+    }
+    if ($validDays !== null && ($validDays < 1 || $validDays > 365)) {
+        throw new InvalidArgumentException('Key duration must be between 1 and 365 days.');
+    }
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM edge_staff_access_keys WHERE vendor_id=? AND username=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1"
+    );
+    $stmt->execute([$vendorId, $username]);
+    if ($stmt->fetchColumn()) {
+        throw new InvalidArgumentException('That username already has an active key. Revoke it before creating another.');
+    }
+    $accessKey = generate_edge_staff_key();
+    $expiresSql = $validDays === null ? 'NULL' : "DATE_ADD(NOW(), INTERVAL {$validDays} DAY)";
+    $stmt = $pdo->prepare(
+        "INSERT INTO edge_staff_access_keys (vendor_id,username,key_hash,expires_at,created_by) VALUES (?,?,?,{$expiresSql},?)"
+    );
+    $stmt->execute([$vendorId, $username, edge_secret_hash($accessKey), $userId]);
+    return ['key' => $accessKey, 'id' => (int) $pdo->lastInsertId(), 'username' => $username];
+}
+
+function revoke_edge_staff_access_key(PDO $pdo, int $vendorId, int $keyId): bool
+{
+    $stmt = $pdo->prepare(
+        "UPDATE edge_staff_access_keys SET status='revoked',revoked_at=NOW() WHERE id=? AND vendor_id=? AND status='active'"
+    );
+    $stmt->execute([$keyId, $vendorId]);
+    return $stmt->rowCount() === 1;
+}
+
 function enroll_edge_device(PDO $pdo, string $token, string $deviceName, string $softwareVersion): ?array
 {
     if (!preg_match('/^edge_[A-Za-z0-9_-]{32}$/', $token)) {

@@ -140,6 +140,9 @@ def initialize_database(data_dir: Path) -> sqlite3.Connection:
     if "status_token" not in order_columns:
         connection.execute("ALTER TABLE orders ADD COLUMN status_token TEXT")
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_edge_orders_status_token ON orders(status_token)")
+    event_columns = {row[1] for row in connection.execute("PRAGMA table_info(edge_order_events)")}
+    if "remote_staff_key_id" not in event_columns:
+        connection.execute("ALTER TABLE edge_order_events ADD COLUMN remote_staff_key_id INTEGER")
     return connection
 
 
@@ -148,7 +151,13 @@ def apply_snapshot(connection: sqlite3.Connection, snapshot: dict, expected_slug
         raise EdgeError("The server returned an unsupported snapshot schema.")
     vendor = snapshot.get("vendor")
     items = snapshot.get("menu_items")
-    if not isinstance(vendor, dict) or not isinstance(items, list) or vendor.get("slug") != expected_slug:
+    staff_access_keys = snapshot.get("staff_access_keys", [])
+    if (
+        not isinstance(vendor, dict)
+        or not isinstance(items, list)
+        or not isinstance(staff_access_keys, list)
+        or vendor.get("slug") != expected_slug
+    ):
         raise EdgeError("The snapshot does not match this device's vendor.")
 
     snapshot_vendor_columns = (
@@ -179,6 +188,20 @@ def apply_snapshot(connection: sqlite3.Connection, snapshot: dict, expected_slug
                     int(item["id"]), str(item["name"]), str(item.get("category", "")),
                     str(item["price"]), json.dumps(item.get("variants", []), separators=(",", ":")),
                 ),
+            )
+        connection.execute("DELETE FROM edge_staff_access_keys")
+        for staff_key in staff_access_keys:
+            try:
+                key_id = int(staff_key["id"])
+                username = str(staff_key["username"])
+                key_hash = str(staff_key["key_hash"])
+            except (KeyError, TypeError, ValueError):
+                raise EdgeError("The snapshot contains an invalid staff access key.") from None
+            if key_id < 1 or not username or len(key_hash) != 64:
+                raise EdgeError("The snapshot contains an invalid staff access key.")
+            connection.execute(
+                "INSERT INTO edge_staff_access_keys (id,username,key_hash,expires_at_epoch) VALUES (?,?,?,?)",
+                (key_id, username, key_hash, staff_key.get("expires_at_epoch")),
             )
         connection.execute(
             "INSERT INTO edge_state (key,value) VALUES ('snapshot_hash',?) "

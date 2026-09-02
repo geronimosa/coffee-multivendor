@@ -38,6 +38,7 @@ button,.button { display:inline-block; padding:.7rem 1rem; border:0; border-radi
 .enrollment-key { display:block; padding:1rem; border:1px dashed var(--coffee); border-radius:8px; background:#fff9e8; font-size:1rem; overflow-wrap:anywhere; user-select:all; }
 .danger-button { background:var(--danger); }
 table { width:100%; border-collapse:collapse; background:#fff; }
+.table-wrap { overflow-x:auto; }
 th,td { padding:.75rem; text-align:left; border-bottom:1px solid var(--line); }
 .badge { display:inline-block; border-radius:999px; padding:.2rem .55rem; background:#e7f6ea; color:#1d6330; font-size:.8rem; font-weight:700; }
 .badge.suspended { background:#fae7e7; color:#842525; }

@@ -18,4 +18,7 @@ edge_assert(hash_equals($signature, hash_hmac('sha256', $body, $secret)), 'Signa
 edge_assert(!hash_equals($signature, edge_sign_payload($body . 'x', $secret)), 'Changed payload was accepted.');
 edge_assert(!hash_equals(edge_secret_hash($secret), edge_secret_hash($secret . 'x')), 'Secret hashes must differ.');
 
+$staffKey = generate_edge_staff_key();
+edge_assert((bool) preg_match('/^[A-HJ-NP-Za-km-z2-9]{10}$/', $staffKey), 'Staff key format is invalid.');
+
 echo "Edge protocol test passed.\n";

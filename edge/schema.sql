@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS menu_items (
     variant_options TEXT NOT NULL DEFAULT '[]'
 );
 
+CREATE TABLE IF NOT EXISTS edge_staff_access_keys (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    expires_at_epoch INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_edge_staff_username ON edge_staff_access_keys(username);
+
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_uuid TEXT NOT NULL UNIQUE,
@@ -66,3 +75,19 @@ CREATE TABLE IF NOT EXISTS order_items (
     unit_price TEXT NOT NULL,
     subtotal TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS edge_order_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_uuid TEXT NOT NULL UNIQUE,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    from_status TEXT,
+    to_status TEXT,
+    payment_status TEXT NOT NULL,
+    actor TEXT NOT NULL DEFAULT 'staff',
+    remote_staff_key_id INTEGER,
+    created_at TEXT NOT NULL,
+    synced_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_edge_events_sync ON edge_order_events(synced_at, created_at);
