@@ -13,18 +13,18 @@ $vendors = $pdo->query(
 $pageTitle = 'Vendors';
 require __DIR__ . '/_header.php';
 ?>
-<div class="actions"><div><h1>Vendors</h1><p class="muted">Create and configure independent kiosk owners.</p></div><a class="button" href="vendor_edit.php">Add vendor</a></div>
-<section class="card">
-<table><thead><tr><th>Vendor</th><th>Status</th><th>Yoco</th><th>WhatsApp</th><th>Services</th><th></th></tr></thead><tbody>
+<div class="actions vendor-toolbar"><div><h1>Vendors</h1><p class="muted">Create and configure independent kiosk owners.</p></div><a class="button" href="vendor_edit.php">Add vendor</a></div>
+<section class="card vendor-list">
+<table class="vendor-table"><thead><tr><th>Vendor</th><th>Status</th><th>Payments</th><th>Messaging</th><th>Access</th></tr></thead><tbody>
 <?php foreach ($vendors as $vendor): ?>
 <tr>
-    <td><strong><?= e($vendor['name']) ?></strong><br><span class="muted"><?= e($vendor['slug']) ?></span></td>
-    <td><span class="badge <?= $vendor['status'] === 'suspended' ? 'suspended' : '' ?>"><?= e(ucfirst($vendor['status'])) ?></span></td>
-    <td><?= e($vendor['yoco_hint'] ?: 'Not configured') ?></td>
-    <td><?= e($vendor['twilio_hint'] ?: 'Not configured') ?></td>
-    <td class="actions"><a href="/shop/<?= e($vendor['slug']) ?>" target="_blank">Open shop</a><a href="/vendor/<?= e($vendor['slug']) ?>" target="_blank">Staff portal</a></td><td><a href="vendor_edit.php?id=<?= (int) $vendor['id'] ?>">Edit</a></td>
+    <td data-label="Vendor"><strong class="vendor-name"><?= e($vendor['name']) ?></strong></td>
+    <td data-label="Status"><span class="badge <?= $vendor['status'] === 'suspended' ? 'suspended' : '' ?>"><?= e(ucfirst($vendor['status'])) ?></span></td>
+    <td data-label="Payments"><span class="integration-state <?= $vendor['yoco_hint'] ? 'configured' : '' ?>"><?= e($vendor['yoco_hint'] ?: 'Yoco not configured') ?></span></td>
+    <td data-label="Messaging"><span class="integration-state <?= $vendor['twilio_hint'] ? 'configured' : '' ?>"><?= e($vendor['twilio_hint'] ?: 'WhatsApp not configured') ?></span></td>
+    <td data-label="Access"><div class="vendor-actions"><a class="button secondary" href="/shop/<?= e($vendor['slug']) ?>" target="_blank">Shop</a><a class="button secondary" href="/vendor/<?= e($vendor['slug']) ?>" target="_blank">Staff</a><a class="button" href="vendor_edit.php?id=<?= (int) $vendor['id'] ?>">Edit</a></div></td>
 </tr>
 <?php endforeach; ?>
-<?php if (!$vendors): ?><tr><td colspan="6">No vendors yet.</td></tr><?php endif; ?>
+<?php if (!$vendors): ?><tr><td colspan="5">No vendors yet.</td></tr><?php endif; ?>
 </tbody></table></section>
 <?php require __DIR__ . '/_footer.php'; ?>
