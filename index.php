@@ -26,12 +26,7 @@
                 <span>Collect when ready</span>
             </div>
         </div>
-        <div class="system-card" aria-label="Order workflow preview">
-            <div class="card-head"><span>Live event orders</span><span class="live">Live</span></div>
-            <div class="order"><span class="number">#042</span><div><strong>Order received</strong><small>Payment verified</small></div><span class="status paid">Paid</span></div>
-            <div class="order"><span class="number">#043</span><div><strong>Preparing</strong><small>Ready shortly</small></div><span class="status making">Making</span></div>
-            <div class="order"><span class="number">#044</span><div><strong>Ready to collect</strong><small>No need to wait in line</small></div><span class="status ready">Ready</span></div>
-        </div>
+        <div class="event-note"><strong>One event.</strong><span>Many vendors.</span><span>One simple experience.</span></div>
     </section>
 
     <section class="benefits" aria-label="Platform overview">
