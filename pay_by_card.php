@@ -10,7 +10,7 @@ if (!$orderId || !$restaurantId) {
 }
 
 // Mark the order as a credit card payment
-$stmt = $pdo->prepare("UPDATE orders SET credit_card_payment = 1 WHERE id = ?");
+$stmt = $pdo->prepare("UPDATE orders SET credit_card_payment = 1, payment_method = 'counter_card' WHERE id = ?");
 $stmt->execute([$orderId]);
 
 // Optional: Fetch restaurant name for context

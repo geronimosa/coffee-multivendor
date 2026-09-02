@@ -41,7 +41,7 @@ try {
 
     // Optionally update order status if completed
     if ($status === 'completed') {
-        $stmt = $pdo->prepare("UPDATE orders SET status = 'paid', payment_reference = ? WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE orders SET status = 'paid', payment_status = 'paid', payment_method = 'snapscan', paid_at = NOW(), payment_reference = ? WHERE id = ?");
         $stmt->execute([$snapscan_ref, $reference]);
         
         

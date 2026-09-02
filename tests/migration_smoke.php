@@ -39,7 +39,7 @@ try {
         $stmt->execute([$testDatabase, $requiredTable]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException('Missing table: ' . $requiredTable);
     }
-    foreach ([['restaurants', 'slug'], ['restaurants', 'theme_primary'], ['restaurants', 'hero_path'], ['users', 'password_hash']] as [$table, $column]) {
+    foreach ([['restaurants', 'slug'], ['restaurants', 'theme_primary'], ['restaurants', 'hero_path'], ['users', 'password_hash'], ['orders', 'payment_status']] as [$table, $column]) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name=? AND column_name=?');
         $stmt->execute([$testDatabase, $table, $column]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException("Missing column: $table.$column");
