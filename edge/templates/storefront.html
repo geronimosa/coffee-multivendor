@@ -17,23 +17,25 @@
     </header>
 
     {% if not groups %}<section class="empty"><h2>Nothing on the menu yet</h2><p>Please check back shortly.</p></section>{% endif %}
+    <form method="post" action="/cart.php">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="slug" value="{{ vendor.slug }}">
     {% for category, items in groups.items() %}
         <h2 class="category">{{ category }}</h2>
         <section class="product-grid">
         {% for item in items %}
             <article class="product">
                 <h3>{{ item.row.name }}</h3>
-                {% if item.variants %}
-                    <ul class="variants">
-                    {% for variant in item.variants %}<li><span>{{ variant.label }}</span><strong>R{{ '%.2f'|format(variant.price|float) }}</strong></li>{% endfor %}
-                    </ul>
-                {% else %}
-                    <strong>R{{ '%.2f'|format(item.row.price|float) }}</strong>
-                {% endif %}
+                <div class="product-controls">
+                    {% if item.variants %}<select name="variant_{{ item.row.id }}" aria-label="{{ item.row.name }} option">{% for variant in item.variants %}<option value="{{ variant.label }}">{{ variant.label }} · R{{ '%.2f'|format(variant.price|float) }}</option>{% endfor %}</select>{% else %}<span><strong>R{{ '%.2f'|format(item.row.price|float) }}</strong></span><input type="hidden" name="variant_{{ item.row.id }}" value="Standard">{% endif %}
+                    <input type="number" name="quantity_{{ item.row.id }}" value="0" min="0" max="20" inputmode="numeric" aria-label="{{ item.row.name }} quantity">
+                </div>
             </article>
         {% endfor %}
         </section>
     {% endfor %}
+    {% if groups %}<div class="cart-bar"><div class="cart-actions"><button class="primary-button" type="submit"><span>Add selected items</span><span>＋</span></button><a class="secondary-button" href="/cart.php"><span>View cart</span><span>→</span></a></div></div>{% endif %}
+    </form>
 
     {% if vendor.vendor_description %}<footer class="vendor-footer">{{ vendor.vendor_description|safe }}</footer>{% endif %}
 </main>

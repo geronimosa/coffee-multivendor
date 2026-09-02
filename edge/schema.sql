@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_method TEXT,
     payment_status TEXT NOT NULL DEFAULT 'unpaid',
     payment_reference TEXT,
+    status_token TEXT NOT NULL UNIQUE,
     paid_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,

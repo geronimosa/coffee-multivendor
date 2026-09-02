@@ -136,6 +136,10 @@ def initialize_database(data_dir: Path) -> sqlite3.Connection:
     connection.execute("PRAGMA foreign_keys = ON")
     schema_path = Path(__file__).with_name("schema.sql")
     connection.executescript(schema_path.read_text(encoding="utf-8"))
+    order_columns = {row[1] for row in connection.execute("PRAGMA table_info(orders)")}
+    if "status_token" not in order_columns:
+        connection.execute("ALTER TABLE orders ADD COLUMN status_token TEXT")
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_edge_orders_status_token ON orders(status_token)")
     return connection
 
 
