@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/vendor_auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/rich_text.php';
 require_once __DIR__ . '/../includes/restaurant_service.php';
+require_once __DIR__ . '/../includes/messaging.php';
 require_once __DIR__ . '/../includes/vendor_portal_nav.php';
 
 $slug = trim((string) ($_GET['slug'] ?? ''));
@@ -43,7 +44,7 @@ if ($authorized && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order_
     $orderId = (int) $_POST['order_id'];
     $target = (string) ($_POST['status'] ?? '');
     $stmt = $pdo->prepare('SELECT status,credit_card_payment,payment_status,service_type,table_tab_id FROM orders WHERE id=? AND restaurant_id=? FOR UPDATE');
-    $pdo->beginTransaction();
+    $notifyReady=false;$pdo->beginTransaction();
     try {
         $stmt->execute([$orderId, $vendorId]);
         $order = $stmt->fetch();
@@ -62,13 +63,14 @@ if ($authorized && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order_
             || ($target === 'archived' && in_array($current, ['collected', 'cancelled'], true))
             || ($target === 'cancelled' && ($paidPending || $isCounter || in_array($current, ['preparing', 'complete'], true)));
         }
-        if ($valid) $pdo->prepare('UPDATE orders SET status=? WHERE id=? AND restaurant_id=?')->execute([$target, $orderId, $vendorId]);
+        if ($valid) {$pdo->prepare('UPDATE orders SET status=? WHERE id=? AND restaurant_id=?')->execute([$target, $orderId, $vendorId]);$notifyReady=$target==='complete'&&$current!=='complete';}
         if(!empty($order['table_tab_id']))refresh_table_tab_totals($pdo,(int)$order['table_tab_id']);
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $exception;
     }
+    if($notifyReady){try{send_order_ready_message($pdo,$vendorId,$orderId);}catch(Throwable $e){error_log('Unable to send order-ready message: '.$e->getMessage());}}
     redirect('/vendor/' . rawurlencode($slug) . '?tab=' . urlencode($activeTab));
 }
 

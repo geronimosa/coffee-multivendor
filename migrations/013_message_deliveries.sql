@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS message_deliveries (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    vendor_id INT NOT NULL,
+    order_id INT NULL,
+    provider VARCHAR(32) NOT NULL DEFAULT 'twilio',
+    channel ENUM('sms','whatsapp') NOT NULL,
+    recipient VARCHAR(32) NOT NULL,
+    event_type VARCHAR(64) NOT NULL,
+    provider_message_sid VARCHAR(64) NULL,
+    status ENUM('queued','sent','delivered','failed') NOT NULL DEFAULT 'queued',
+    error_code VARCHAR(32) NULL,
+    error_message VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_message_order (order_id,created_at),
+    KEY idx_message_vendor_status (vendor_id,status,created_at),
+    CONSTRAINT fk_message_vendor FOREIGN KEY (vendor_id) REFERENCES restaurants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_message_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

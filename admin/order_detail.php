@@ -1,6 +1,7 @@
 <?php
 require_once '../includes/db.php';
-require_once '../includes/whatsapp.php';
+require_once '../includes/bootstrap.php';
+require_once '../includes/messaging.php';
 
 $orderId = $_GET['id'] ?? null;
 $restaurantId = $_GET['rid'] ?? null;
@@ -32,10 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'])) {
             ");
             $stmt->execute([$orderId]);
             $items = $stmt->fetchAll();
-                // Send WhatsApp notification
-                $image=generateSlipImage($orderId, $restaurantId);
-               
-                sendOrderReadyTemplate($order['phone'], $order['name'], $orderId, $items, $order['total']);
+                try { send_order_ready_message($pdo, (int) $restaurantId, (int) $orderId); } catch (Throwable $e) { error_log('Unable to send order-ready message: ' . $e->getMessage()); }
             }
 
             // Update the order status

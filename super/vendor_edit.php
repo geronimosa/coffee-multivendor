@@ -17,6 +17,7 @@ $yoco = null;
 $snapscan = null;
 $zapper = null;
 $twilio = null;
+$twilioConfig = [];
 $owner = null;
 $error = null;
 
@@ -28,6 +29,7 @@ if ($vendorId) {
     $snapscan = integration_for_vendor($pdo, $vendorId, 'snapscan');
     $zapper = integration_for_vendor($pdo, $vendorId, 'zapper');
     $twilio = integration_for_vendor($pdo, $vendorId, 'twilio');
+    $twilioConfig = integration_config($twilio);
     $stmt = $pdo->prepare("SELECT u.name, u.email FROM users u JOIN restaurant_users ru ON ru.user_id=u.id WHERE ru.restaurant_id=? AND ru.role='admin' ORDER BY ru.id LIMIT 1");
     $stmt->execute([$vendorId]);
     $owner = $stmt->fetch() ?: null;
@@ -79,9 +81,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existingConfig = $existingTwilio ? integration_config($existingTwilio) : [];
         $sid = trim((string) ($_POST['twilio_account_sid'] ?? '')) ?: ($existingConfig['account_sid'] ?? '');
         $token = trim((string) ($_POST['twilio_auth_token'] ?? '')) ?: ($existingConfig['auth_token'] ?? '');
-        $from = trim((string) ($_POST['twilio_whatsapp_from'] ?? '')) ?: ($existingConfig['whatsapp_from'] ?? '');
-        if ($sid === '' || $token === '' || $from === '') {
-            $error = 'Account SID, Auth Token, and WhatsApp sender are required before enabling WhatsApp.';
+        $primary = in_array($_POST['twilio_primary_channel'] ?? '', ['sms','whatsapp'], true) ? (string) $_POST['twilio_primary_channel'] : 'sms';
+        $fallback = in_array($_POST['twilio_fallback_channel'] ?? '', ['sms','whatsapp'], true) ? (string) $_POST['twilio_fallback_channel'] : 'none';
+        $smsFrom = trim((string) ($_POST['twilio_sms_from'] ?? '')) ?: ($existingConfig['sms_from'] ?? '');
+        $messagingServiceSid = trim((string) ($_POST['twilio_messaging_service_sid'] ?? '')) ?: ($existingConfig['messaging_service_sid'] ?? '');
+        $whatsappFrom = trim((string) ($_POST['twilio_whatsapp_from'] ?? '')) ?: ($existingConfig['whatsapp_from'] ?? '');
+        if ($sid === '' || $token === '') {
+            $error = 'Account SID and Auth Token are required before enabling Twilio messaging.';
+        } elseif ($primary === 'sms' && $smsFrom === '' && $messagingServiceSid === '') {
+            $error = 'Enter an SMS sender or Messaging Service SID before enabling SMS.';
+        } elseif ($primary === 'whatsapp' && $whatsappFrom === '') {
+            $error = 'Enter a WhatsApp sender before enabling WhatsApp.';
+        } elseif ($fallback === 'sms' && $smsFrom === '' && $messagingServiceSid === '') {
+            $error = 'Enter an SMS sender or Messaging Service SID before enabling SMS fallback.';
+        } elseif ($fallback === 'whatsapp' && $whatsappFrom === '') {
+            $error = 'Enter a WhatsApp sender before enabling WhatsApp fallback.';
         }
     }
 
@@ -142,6 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 save_vendor_integration($pdo, $vendorId, 'twilio', 'live', !empty($_POST['twilio_enabled']), [
                     'account_sid' => $_POST['twilio_account_sid'] ?? '',
                     'auth_token' => $_POST['twilio_auth_token'] ?? '',
+                    'primary_channel' => $_POST['twilio_primary_channel'] ?? 'sms',
+                    'fallback_channel' => $_POST['twilio_fallback_channel'] ?? 'none',
+                    'sms_from' => $_POST['twilio_sms_from'] ?? '',
+                    'messaging_service_sid' => $_POST['twilio_messaging_service_sid'] ?? '',
                     'whatsapp_from' => $_POST['twilio_whatsapp_from'] ?? '',
                     'content_sid_order_ready' => $_POST['twilio_content_sid_order_ready'] ?? '',
                 ]);
@@ -283,13 +301,18 @@ require __DIR__ . '/_header.php';
     <div><label><input type="checkbox" name="zapper_enabled" value="1" <?= !empty($zapper['enabled'])?'checked':'' ?>> Enable Zapper</label></div>
     <?php if ($zapper): ?><div><label><input type="checkbox" name="clear_zapper" value="1"> Remove saved Zapper credentials</label></div><?php endif; ?>
 </div></section>
-<section class="card"><h2>WhatsApp via Twilio</h2><p class="muted">Saved credentials: <?= e($twilio['config_hint'] ?? 'Not configured') ?>. Blank fields retain saved values.</p><div class="grid">
+<?php $twilioPrimary=$twilioConfig['primary_channel']??(!empty($twilioConfig['whatsapp_from'])?'whatsapp':'sms');$twilioFallback=$twilioConfig['fallback_channel']??'none';?>
+<section class="card"><h2>Messaging via Twilio</h2><p class="muted">Send transactional order updates by SMS or WhatsApp. SMS is recommended as the default. Saved credentials: <?= e($twilio['config_hint'] ?? 'Not configured') ?>.</p><div class="grid">
     <div><label for="twilio_account_sid">Account SID</label><input id="twilio_account_sid" type="password" name="twilio_account_sid" autocomplete="new-password"></div>
     <div><label for="twilio_auth_token">Auth token</label><input id="twilio_auth_token" type="password" name="twilio_auth_token" autocomplete="new-password"></div>
+    <div><label for="twilio_primary_channel">Primary channel</label><select id="twilio_primary_channel" name="twilio_primary_channel"><option value="sms" <?=$twilioPrimary==='sms'?'selected':''?>>SMS</option><option value="whatsapp" <?=$twilioPrimary==='whatsapp'?'selected':''?>>WhatsApp</option></select></div>
+    <div><label for="twilio_fallback_channel">Fallback channel</label><select id="twilio_fallback_channel" name="twilio_fallback_channel"><option value="none" <?=in_array($twilioFallback,['','none'],true)?'selected':''?>>No fallback</option><option value="sms" <?=$twilioFallback==='sms'?'selected':''?>>SMS</option><option value="whatsapp" <?=$twilioFallback==='whatsapp'?'selected':''?>>WhatsApp</option></select></div>
+    <div><label for="twilio_sms_from">SMS sender number</label><input id="twilio_sms_from" name="twilio_sms_from" placeholder="+27..."></div>
+    <div><label for="twilio_messaging_service_sid">Messaging Service SID</label><input id="twilio_messaging_service_sid" name="twilio_messaging_service_sid" placeholder="MG..."></div>
     <div><label for="twilio_whatsapp_from">WhatsApp sender</label><input id="twilio_whatsapp_from" name="twilio_whatsapp_from" placeholder="whatsapp:+27..."></div>
     <div><label for="twilio_content_sid_order_ready">Order-ready template SID</label><input id="twilio_content_sid_order_ready" name="twilio_content_sid_order_ready"></div>
-    <div><label><input type="checkbox" name="twilio_enabled" value="1" <?= !empty($twilio['enabled'])?'checked':'' ?>> Enable WhatsApp</label></div>
-    <?php if ($twilio): ?><div><label><input type="checkbox" name="clear_twilio" value="1"> Remove saved WhatsApp credentials</label></div><?php endif; ?>
+    <div><label><input type="checkbox" name="twilio_enabled" value="1" <?= !empty($twilio['enabled'])?'checked':'' ?>> Enable order notifications</label></div>
+    <?php if ($twilio): ?><div><label><input type="checkbox" name="clear_twilio" value="1"> Remove saved Twilio credentials</label></div><?php endif; ?>
 </div></section>
 <div class="actions"><button type="submit">Save vendor</button><a class="button secondary" href="/super/">Cancel</a></div>
 </form>

@@ -4,6 +4,8 @@ Multi-vendor kiosk ordering application with separate customer and vendor interf
 
 Vendors can operate as kiosks/food trucks or as table-service restaurants. Restaurant mode adds table QR codes, persistent open bills, guest-labelled ordering rounds, kitchen notes, service charges, split payment recording, and table cash-up.
 
+Vendor messaging uses Twilio with SMS or WhatsApp as the primary transactional channel and an optional cross-channel fallback. Credentials and sender configuration are encrypted per vendor; delivery attempts are recorded against orders.
+
 This is a sanitized baseline of the original demonstration application. Runtime credentials, uploaded till slips, temporary files, and customer data are excluded.
 
 Copy `.env.example` to `.env` and provide environment-specific values. Never commit `.env` or production credentials.

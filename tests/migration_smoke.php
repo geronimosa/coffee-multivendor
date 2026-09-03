@@ -46,7 +46,7 @@ try {
         $pdo->exec($migration);
     }
 
-    foreach (['vendor_integrations', 'audit_logs', 'password_setup_tokens', 'edge_devices', 'edge_enrollment_tokens', 'edge_staff_access_keys', 'edge_order_events', 'dining_tables', 'table_tabs', 'tab_guests', 'tab_payments'] as $requiredTable) {
+    foreach (['vendor_integrations', 'audit_logs', 'password_setup_tokens', 'edge_devices', 'edge_enrollment_tokens', 'edge_staff_access_keys', 'edge_order_events', 'dining_tables', 'table_tabs', 'tab_guests', 'tab_payments', 'message_deliveries'] as $requiredTable) {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?');
         $stmt->execute([$testDatabase, $requiredTable]);
         if ((int) $stmt->fetchColumn() !== 1) throw new RuntimeException('Missing table: ' . $requiredTable);
