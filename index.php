@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="description" content="A secure multi-vendor ordering system that reduces kiosk queues at large events and works well where mobile coverage is poor.">
     <title>QRKiosk · Less queuing, better events</title>
-    <link rel="stylesheet" href="/assets/css/landing.css">
+    <link rel="stylesheet" href="/assets/css/landing.css?v=20260903-1">
 </head>
 <body>
 <header class="site-head">
@@ -37,6 +37,33 @@
         <article><span>01</span><h2>Reduce event queues</h2><p>Guests place orders without crowding vendor counters, keeping walkways and service areas clearer.</p></article>
         <article><span>02</span><h2>Order at leisure</h2><p>Customers choose and pay when it suits them, then return to the kiosk only for collection.</p></article>
         <article><span>03</span><h2>Built for demanding venues</h2><p>Multiple vendors, secure payment tracking and live fulfilment remain manageable when mobile coverage struggles.</p></article>
+    </section>
+
+    <section class="service-modes" aria-labelledby="service-modes-heading">
+        <div class="service-modes-head">
+            <p class="section-label">One platform, three ways to serve</p>
+            <h2 id="service-modes-heading">Built around the way<br><em>your customers order.</em></h2>
+        </div>
+        <div class="service-mode-grid">
+            <article>
+                <span class="mode-number">01</span>
+                <p class="mode-label">Kiosk</p>
+                <h3>Fast ordering at busy venues</h3>
+                <p>Customers connect on site, place and pay for an individual order, then collect when the vendor marks it ready.</p>
+            </article>
+            <article class="featured-mode">
+                <span class="mode-number">02</span>
+                <p class="mode-label">Takeaway · Order ahead</p>
+                <h3>Order online for collection</h3>
+                <p>Customers order before arriving and receive a standalone collection order. Nothing is added to a table bill.</p>
+            </article>
+            <article>
+                <span class="mode-number">03</span>
+                <p class="mode-label">Restaurant</p>
+                <h3>Table ordering without the queue</h3>
+                <p>Guests scan their table QR, add rounds to an open bill and follow each order while the kitchen prepares it.</p>
+            </article>
+        </div>
     </section>
 
     <section class="technology" aria-labelledby="technology-heading">
