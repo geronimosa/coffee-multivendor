@@ -20,9 +20,11 @@ $phone = trim(mb_substr((string)($_POST['phone'] ?? ''),0,20));
 $stmt=$pdo->prepare("SELECT * FROM restaurants WHERE id=? AND status='active'");$stmt->execute([$restaurantId]);$restaurant=$stmt->fetch(PDO::FETCH_ASSOC);
 if(!$restaurant){die('Restaurant not found.');}
 $isRestaurant=($restaurant['service_model']??'kiosk')==='restaurant';
+$isTakeaway=$isRestaurant&&($_SESSION['order_modes'][(int)$restaurantId]??'')==='takeaway';
+$isTableOrder=$isRestaurant&&!$isTakeaway;
 
-if (empty($name) || (!$isRestaurant && empty($phone))) {
-    die($isRestaurant ? "Your name or seat is required." : "Name and phone number are required.");
+if (empty($name) || (!$isTableOrder && empty($phone))) {
+    die($isTableOrder ? "Your name or seat is required." : "Name and phone number are required.");
 }
 
 // Calculate total
@@ -36,7 +38,7 @@ $token = bin2hex(random_bytes(8));
 $tableTabId=null;$tabGuestId=null;$roundNumber=null;$table=null;
 $pdo->beginTransaction();
 try {
-    if($isRestaurant){
+    if($isTableOrder){
         $context=$_SESSION['table_contexts'][(int)$restaurantId]??null;
         if(!$context||empty($context['token'])||!($table=dining_table_by_token($pdo,(int)$restaurantId,(string)$context['token']))){throw new RuntimeException('Please scan the QR code on your table again.');}
         $tab=open_table_tab($pdo,(int)$restaurantId,(int)$table['id']);$tableTabId=(int)$tab['id'];
@@ -47,7 +49,7 @@ try {
         $stmt=$pdo->prepare('SELECT COALESCE(MAX(round_number),0)+1 FROM orders WHERE table_tab_id=?');$stmt->execute([$tableTabId]);$roundNumber=(int)$stmt->fetchColumn();
     }
     $stmt = $pdo->prepare("INSERT INTO orders (restaurant_id,table_tab_id,tab_guest_id,service_type,round_number,name,phone,total,token,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,'pending',NOW())");
-    $stmt->execute([$restaurantId,$tableTabId,$tabGuestId,$isRestaurant?'table':'kiosk',$roundNumber,$name,$phone,$total,$token]);
+    $stmt->execute([$restaurantId,$tableTabId,$tabGuestId,$isTableOrder?'table':($isTakeaway?'takeaway':'kiosk'),$roundNumber,$name,$phone,$total,$token]);
     $order_id = $pdo->lastInsertId();
     $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id,menu_item_id,variant_label,item_note,quantity,unit_price) VALUES (?,?,?,?,?,?)");
     foreach ($cart as $item) {$itemStmt->execute([$order_id,$item['id'],$item['variant'],($item['note']??'')?:null,$item['qty'],$item['unit_price']]);}
@@ -59,7 +61,7 @@ try {
 unset($_SESSION['cart']);
 unset($_SESSION['carts'][(int)$restaurantId]);
 
-if($isRestaurant){
+if($isTableOrder){
     header('Location: /order_status.php?token='.urlencode($token));
     exit;
 }
