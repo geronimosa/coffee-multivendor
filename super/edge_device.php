@@ -79,6 +79,8 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute([$vendorId, $vendorId]);
 $staffKeys = $stmt->fetchAll();
+$staffAccessUrl=$staffAccess?rtrim((string)env('APP_URL','https://coffee.tatu.co.za'),'/').'/vendor/'.rawurlencode($vendor['slug']).'#staff-key='.rawurlencode($staffAccess['key']):null;
+$whatsAppUrl=$staffAccessUrl?'https://wa.me/?text='.rawurlencode($vendor['name'].' portal access for '.$staffAccess['username'].': '.$staffAccessUrl):null;
 
 $pageTitle = 'Edge device';
 require __DIR__ . '/_header.php';
@@ -99,7 +101,10 @@ require __DIR__ . '/_header.php';
     <p>Username: <strong><?= e($staffAccess['username']) ?></strong></p>
     <p>Access: <strong><?=($staffAccess['portal_role']??'staff')==='vendor_admin'?'Vendor administrator':'Staff'?></strong></p>
     <p><code class="enrollment-key"><?= e($staffAccess['key']) ?></code></p>
-    <p class="muted">Give this key only to its named user. It cannot be shown again.</p>
+    <label for="staff-login-url">Private login link</label>
+    <input id="staff-login-url" class="staff-login-url" value="<?=e($staffAccessUrl)?>" readonly onclick="this.select()">
+    <p class="actions"><a class="button" href="<?=e($whatsAppUrl)?>" target="_blank" rel="noopener">Share on WhatsApp</a><a class="button secondary" href="<?=e($staffAccessUrl)?>" target="_blank" rel="noopener">Test login link</a></p>
+    <p class="muted">This URL grants the same access as the key. Send it only to the named user. The key and URL cannot be shown again after leaving this page.</p>
 </section>
 <?php endif; ?>
 

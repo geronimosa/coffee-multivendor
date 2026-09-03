@@ -96,7 +96,7 @@ function regenerate_edge_staff_access_key(PDO $pdo, int $vendorId, int $keyId, i
 {
     $pdo->beginTransaction();
     try {
-        $stmt = $pdo->prepare('SELECT id,username FROM edge_staff_access_keys WHERE id=? AND vendor_id=? LIMIT 1 FOR UPDATE');
+        $stmt = $pdo->prepare('SELECT id,username,portal_role FROM edge_staff_access_keys WHERE id=? AND vendor_id=? LIMIT 1 FOR UPDATE');
         $stmt->execute([$keyId, $vendorId]);
         $staffKey = $stmt->fetch();
         if (!$staffKey) throw new InvalidArgumentException('Staff user was not found.');
@@ -106,7 +106,7 @@ function regenerate_edge_staff_access_key(PDO $pdo, int $vendorId, int $keyId, i
         $pdo->prepare("UPDATE edge_staff_access_keys SET key_hash=?,status='active',expires_at=NULL,revoked_at=NULL,created_by=?,created_at=NOW() WHERE id=? AND vendor_id=?")
             ->execute([edge_secret_hash($accessKey), $userId, $keyId, $vendorId]);
         $pdo->commit();
-        return ['key' => $accessKey, 'id' => $keyId, 'username' => (string) $staffKey['username']];
+        return ['key'=>$accessKey,'id'=>$keyId,'username'=>(string)$staffKey['username'],'portal_role'=>(string)$staffKey['portal_role']];
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $exception;
