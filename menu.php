@@ -14,7 +14,7 @@ if(($vendor['service_model']??'kiosk')==='restaurant'){
     elseif(!empty($_SESSION['table_contexts'][$vendorId])){$table=$_SESSION['table_contexts'][$vendorId];$tableToken=(string)$table['token'];}
     else{http_response_code(400);exit('Please scan the QR code on your table to order.');}
 }
-$stmt=$pdo->prepare("SELECT * FROM menu_items WHERE restaurant_id=? ORDER BY CASE category WHEN 'Coffee' THEN 1 WHEN 'Hot Drinks' THEN 2 WHEN 'Cold Drinks' THEN 3 WHEN 'Breakfast' THEN 4 WHEN 'Bakery' THEN 5 WHEN 'Light Meals' THEN 6 WHEN 'Extras' THEN 7 ELSE 8 END, category, name");$stmt->execute([$vendorId]);$items=$stmt->fetchAll();$groups=[];foreach($items as $item)$groups[$item['category']?:'Menu'][]=$item;
+$stmt=$pdo->prepare("SELECT * FROM menu_items WHERE restaurant_id=?".($isTakeaway?' AND takeaway_enabled=1':'')." ORDER BY CASE category WHEN 'Coffee' THEN 1 WHEN 'Hot Drinks' THEN 2 WHEN 'Cold Drinks' THEN 3 WHEN 'Breakfast' THEN 4 WHEN 'Bakery' THEN 5 WHEN 'Light Meals' THEN 6 WHEN 'Extras' THEN 7 ELSE 8 END, category, name");$stmt->execute([$vendorId]);$items=$stmt->fetchAll();$groups=[];foreach($items as $item)$groups[$item['category']?:'Menu'][]=$item;
 $cart=$_SESSION['carts'][$vendorId]??[];$cartCount=array_sum(array_column($cart,'qty'));$cartTotal=array_sum(array_map(fn($row)=>$row['qty']*$row['unit_price'],$cart));$logout=filter_input(INPUT_GET,'logout')?:'';
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title><?= htmlspecialchars($vendor['name']) ?> · Order online</title><link rel="stylesheet" href="/assets/css/storefront.css?v=20260903-1"></head>
