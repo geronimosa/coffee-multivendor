@@ -37,6 +37,38 @@ function twilio_sms_sender_options(array $config): array
     return [];
 }
 
+function messaging_slip_filename(int $orderId,?string $token=null): string
+{
+    return 'slip_'.$orderId.'_'.($token??bin2hex(random_bytes(12))).'.jpg';
+}
+
+function messaging_generate_slip_image(int $orderId,int $vendorId): string
+{
+    $filename=messaging_slip_filename($orderId);
+    $output=dirname(__DIR__).'/images/'.$filename;
+    $baseUrl=rtrim((string)(getenv('APP_URL')?:'https://coffee.tatu.co.za'),'/');
+    $expires=time()+300;
+    $signingKey=(string)getenv('APP_KEY');
+    if($signingKey==='')throw new RuntimeException('Receipt signing key is not configured.');
+    $signature=hash_hmac('sha256',$orderId.'|'.$vendorId.'|'.$expires,$signingKey);
+    $url=$baseUrl.'/admin/slip_image.php?'.http_build_query(['id'=>$orderId,'rid'=>$vendorId,'expires'=>$expires,'signature'=>$signature]);
+    $process=proc_open(['/usr/bin/wkhtmltoimage','--quiet','--width','300',$url,$output],[1=>['pipe','w'],2=>['pipe','w']],$pipes);
+    if(!is_resource($process))throw new RuntimeException('Could not start receipt image generator.');
+    $stdout=stream_get_contents($pipes[1]);fclose($pipes[1]);
+    $stderr=stream_get_contents($pipes[2]);fclose($pipes[2]);
+    $exitCode=proc_close($process);
+    if($exitCode!==0 || !is_file($output) || filesize($output)===0){
+        $detail=$stderr!==''?trim($stderr):trim($stdout);
+        throw new RuntimeException('Could not generate receipt image'.($detail!==''?': '.$detail:'.'));
+    }
+    return $filename;
+}
+
+function messaging_whatsapp_content_variables(array $order,int $orderId,string $slipFilename): string
+{
+    return json_encode(['1'=>(string)$order['name'],'2'=>(string)$orderId,'3'=>$slipFilename],JSON_THROW_ON_ERROR);
+}
+
 function message_delivery_log(PDO $pdo,int $vendorId,?int $orderId,string $channel,string $recipient,string $status,?string $sid=null,?string $error=null): void
 {
     $pdo->prepare('INSERT INTO message_deliveries(vendor_id,order_id,channel,recipient,event_type,provider_message_sid,status,error_message) VALUES(?,?,?,?,\'order_ready\',?,?,?)')->execute([$vendorId,$orderId,$channel,$recipient,$sid,$status,$error?mb_substr($error,0,255):null]);
@@ -71,7 +103,11 @@ function send_order_ready_message(PDO $pdo,int $vendorId,int $orderId): array
             }else{
                 $from=(string)($config['whatsapp_from']??'');if($from==='')throw new RuntimeException('WhatsApp sender is not configured.');
                 $waTo='whatsapp:'.$to;$payload=['from'=>str_starts_with($from,'whatsapp:')?$from:'whatsapp:'.$from];
-                if(!empty($config['content_sid_order_ready'])){$payload['contentSid']=$config['content_sid_order_ready'];$payload['contentVariables']=json_encode(['1'=>$order['name'],'2'=>(string)$orderId,'3'=>$body],JSON_THROW_ON_ERROR);}else{$payload['body']=$body;}
+                if(!empty($config['content_sid_order_ready'])){
+                    $slipFilename=messaging_generate_slip_image($orderId,$vendorId);
+                    $payload['contentSid']=$config['content_sid_order_ready'];
+                    $payload['contentVariables']=messaging_whatsapp_content_variables($order,$orderId,$slipFilename);
+                }else{$payload['body']=$body;}
                 $message=$client->messages->create($waTo,$payload);
             }
             message_delivery_log($pdo,$vendorId,$orderId,$channel,$to,'queued',(string)$message->sid);

@@ -1,9 +1,18 @@
 <?php
 require_once '../includes/db.php';
 
-$orderId = $_GET['id'] ?? null;
-$restaurantId = $_GET['rid'] ?? null;
-if (!$orderId || !$restaurantId) die("Missing order ID or restaurant ID");
+$orderId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+$restaurantId = filter_input(INPUT_GET, 'rid', FILTER_VALIDATE_INT);
+$expires = filter_input(INPUT_GET, 'expires', FILTER_VALIDATE_INT);
+$signature = (string)($_GET['signature'] ?? '');
+$signingKey = (string)getenv('APP_KEY');
+$expected = ($orderId && $restaurantId && $expires && $signingKey !== '')
+    ? hash_hmac('sha256', $orderId . '|' . $restaurantId . '|' . $expires, $signingKey)
+    : '';
+if (!$orderId || !$restaurantId || !$expires || $expires < time() || $expires > time() + 600 || !hash_equals($expected, $signature)) {
+    http_response_code(403);
+    exit('Invalid or expired receipt link');
+}
 
 // Fetch order
 $stmt = $pdo->prepare("SELECT * FROM orders WHERE id = ? AND restaurant_id = ?");

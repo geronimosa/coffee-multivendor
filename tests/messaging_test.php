@@ -16,5 +16,7 @@ $expect(twilio_client_credentials(['auth_method'=>'api_key','account_sid'=>'AC12
 $expect(twilio_client_credentials(['account_sid'=>'AC123','auth_token'=>'token']), ['method'=>'auth_token','username'=>'AC123','password'=>'token','account_sid'=>null,'region'=>'us1'], 'Legacy Auth Token credentials were not preserved.');
 $expect(twilio_sms_sender_options(['sms_from'=>'+17408297187','messaging_service_sid'=>'MG123']), ['from'=>'+17408297187'], 'Explicit SMS sender did not take precedence.');
 $expect(twilio_sms_sender_options(['messaging_service_sid'=>'MG123']), ['messagingServiceSid'=>'MG123'], 'Messaging Service fallback failed.');
+$expect(messaging_slip_filename(42,'abc123'), 'slip_42_abc123.jpg', 'Receipt filename was not constructed correctly.');
+$expect(messaging_whatsapp_content_variables(['name'=>'Steve'],42,'slip_42_abc123.jpg'), '{"1":"Steve","2":"42","3":"slip_42_abc123.jpg"}', 'WhatsApp template variables do not match the approved template.');
 
 echo "Messaging helper test passed.\n";
