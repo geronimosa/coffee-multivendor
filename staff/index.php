@@ -20,19 +20,10 @@ if (!empty($_GET['token'])) {
     $error = 'This login link is invalid or expired.';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_login'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_key_login'])) {
     require_csrf();
-    $email = strtolower(trim((string) ($_POST['email'] ?? '')));
-    $stmt = $pdo->prepare('SELECT u.id,u.name FROM users u JOIN restaurant_users ru ON ru.user_id=u.id WHERE u.email=? AND u.active=1 AND ru.restaurant_id=? LIMIT 1');
-    $stmt->execute([$email, $vendorId]);
-    $user = $stmt->fetch();
-    if ($user) {
-        $token = bin2hex(random_bytes(32));
-        $pdo->prepare('INSERT INTO login_tokens(user_id,token,expires_at) VALUES(?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE))')->execute([$user['id'], $token]);
-        $url = rtrim((string) env('APP_URL'), '/') . '/vendor/' . rawurlencode($slug) . '?token=' . urlencode($token);
-        sendMail($email, $user['name'] ?: 'Staff member', $vendor['name'] . ' staff login', '<p>Your secure staff login link:</p><p><a href="' . e($url) . '">Open staff portal</a></p><p>This link expires in 10 minutes.</p>');
-    }
-    $message = 'If the email belongs to this vendor, a login link has been sent.';
+    if(complete_staff_key_login($pdo,(string)($_POST['staff_key']??''),$vendorId))redirect('/vendor/'.rawurlencode($slug));
+    $error='That staff key is invalid, expired or revoked.';
 }
 
 $authorized = staff_can_access($pdo, $vendorId);
@@ -102,7 +93,7 @@ if ($authorized) {
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= e($vendor['name']) ?> staff</title><link rel="stylesheet" href="/assets/css/super-admin.css?v=20260902-2"><?php if ($authorized): ?><meta http-equiv="refresh" content="15"><?php endif; ?></head><body class="staff-page <?= $authorized ? 'staff-queue' : '' ?>">
 <header class="topbar"><strong><?= e($vendor['name']) ?> · Staff</strong><?php if ($authorized): ?><a href="/staff/logout.php?slug=<?= urlencode($slug) ?>">Log out</a><?php endif; ?></header><main class="container">
-<?php if (!$authorized): ?><section class="card" style="max-width:480px;margin:auto"><h1>Staff sign in</h1><p class="muted">Use the email address assigned to this vendor.</p><?php if ($message): ?><div class="notice"><?= e($message) ?></div><?php endif; ?><?php if ($error): ?><div class="notice error"><?= e($error) ?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="request_login" value="1"><label for="email">Email</label><input id="email" type="email" name="email" required><p><button type="submit">Email login link</button></p></form></section>
+<?php if (!$authorized): ?><section class="card" style="max-width:480px;margin:auto"><h1>Staff sign in</h1><p class="muted">Enter the 10-character staff key generated for this vendor.</p><?php if ($message): ?><div class="notice"><?= e($message) ?></div><?php endif; ?><?php if ($error): ?><div class="notice error"><?= e($error) ?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="staff_key_login" value="1"><label for="staff_key">Staff key</label><input id="staff_key" name="staff_key" required minlength="10" maxlength="10" pattern="[A-HJ-NP-Za-km-z2-9]{10}" autocomplete="one-time-code" autocapitalize="none" spellcheck="false"><p><button type="submit">Open staff portal</button></p></form></section>
 <?php else: ?><div class="actions fulfilment-head"><div><h1><?=$isRestaurant?'Kitchen queue':'Fulfilment queue'?></h1><p class="muted">Refreshes every 15 seconds</p></div><div class="actions"><?php if(!$isRestaurant):?><a class="button secondary" href="/shop/<?= e($slug) ?>" target="_blank">Customer shop</a><?php endif;?><?php if($isRestaurant):?><a class="button secondary" href="/vendor/<?=e($slug)?>/tables">Tables</a><?php endif;?><?php if (vendor_admin_can_access($pdo, $vendorId)): ?><a class="button secondary" href="/vendor/<?=e($slug)?>/reports">Reports</a><a class="button" href="/product/<?= e($slug) ?>">Products</a><?php endif; ?></div></div>
 <nav class="queue-tabs" aria-label="Order queues"><?php foreach ($tabs as $key => $tab): ?><a class="queue-tab <?= $activeTab === $key ? 'active' : '' ?>" href="?tab=<?= e($key) ?>"><?= e($tab['label']) ?><span><?= $counts[$key] ?></span></a><?php endforeach; ?></nav>
 <?php if (!$orders): ?><section class="card empty"><h2>No <?= e(strtolower($tabs[$activeTab]['label'])) ?> orders</h2></section><?php endif; ?>

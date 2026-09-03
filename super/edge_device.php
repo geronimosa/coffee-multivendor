@@ -42,13 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $validDays === null ? null : (int) $validDays
             );
             audit_log($pdo, 'edge.staff_access_created', 'edge_staff_access_key', (string) $staffAccess['id'], $vendorId);
-            $message = 'Copy this staff key now. It is shown once; the Pi will receive its hash on the next sync.';
+            $message = 'Copy this staff key now. It is shown once and works on the central vendor portal; the Pi will receive its hash on the next sync.';
         } elseif (isset($_POST['regenerate_staff_access'])) {
             $keyId = filter_input(INPUT_POST, 'staff_key_id', FILTER_VALIDATE_INT);
             if (!$keyId) throw new InvalidArgumentException('Choose a valid staff user.');
             $staffAccess = regenerate_edge_staff_access_key($pdo, $vendorId, (int) $keyId, (int) $_SESSION['user_id']);
             audit_log($pdo, 'edge.staff_access_regenerated', 'edge_staff_access_key', (string) $keyId, $vendorId);
-            $message = 'The old staff key has been replaced. Copy the new key now; the Pi will receive its hash on the next sync.';
+            $message = 'The old staff key has been replaced. Copy the new key now; it works on the central vendor portal and the Pi will receive its hash on the next sync.';
         } elseif (isset($_POST['revoke_staff_access'])) {
             $keyId = filter_input(INPUT_POST, 'staff_key_id', FILTER_VALIDATE_INT);
             if (!$keyId || !revoke_edge_staff_access_key($pdo, $vendorId, (int) $keyId)) {
@@ -130,7 +130,7 @@ require __DIR__ . '/_header.php';
 </section>
 
 <section class="card"><h2>Local staff portal</h2>
-    <p class="muted">Create an individual 10-character key for each person who may use <code>/vendor/<?= e($vendor['slug']) ?></code> on the assigned Pi. Only key hashes synchronize to the Pi.</p>
+    <p class="muted">Create an individual 10-character key for each person who may use <code>/vendor/<?= e($vendor['slug']) ?></code> on the central site or assigned Pi. Only key hashes are stored and synchronized.</p>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>">
         <div class="grid">

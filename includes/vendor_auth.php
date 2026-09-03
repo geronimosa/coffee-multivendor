@@ -14,8 +14,27 @@ function staff_can_access(PDO $pdo, int $vendorId): bool
         $stmt=$pdo->prepare("SELECT role,active FROM users WHERE id=?");$stmt->execute([$_SESSION['user_id']]);$user=$stmt->fetch();
         if ($user && (int)$user['active'] && $user['role']==='super_admin') return true;
     }
+    $keyId=(int)($_SESSION['staff_access_key_id']??0);
+    if($keyId>0 && (int)($_SESSION['staff_key_vendor_id']??0)===$vendorId){
+        $stmt=$pdo->prepare("SELECT id FROM edge_staff_access_keys WHERE id=? AND vendor_id=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
+        $stmt->execute([$keyId,$vendorId]);
+        if($stmt->fetchColumn())return true;
+        unset($_SESSION['staff_access_key_id'],$_SESSION['staff_key_vendor_id'],$_SESSION['staff_key_username']);
+    }
     $userId=(int)($_SESSION['staff_user_id']??0);
     return $userId>0 && (int)($_SESSION['staff_vendor_id']??0)===$vendorId && vendor_membership($pdo,$userId,$vendorId)!==null;
+}
+
+function complete_staff_key_login(PDO $pdo,string $accessKey,int $vendorId): bool
+{
+    $accessKey=trim($accessKey);
+    if(!preg_match('/^[A-HJ-NP-Za-km-z2-9]{10}$/',$accessKey))return false;
+    $stmt=$pdo->prepare("SELECT id,username FROM edge_staff_access_keys WHERE vendor_id=? AND key_hash=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
+    $stmt->execute([$vendorId,hash('sha256',$accessKey)]);$key=$stmt->fetch();
+    if(!$key)return false;
+    session_regenerate_id(true);$_SESSION['staff_access_key_id']=(int)$key['id'];$_SESSION['staff_key_vendor_id']=$vendorId;$_SESSION['staff_key_username']=(string)$key['username'];
+    unset($_SESSION['staff_user_id'],$_SESSION['staff_vendor_id']);
+    return true;
 }
 
 function vendor_admin_can_access(PDO $pdo, int $vendorId): bool
