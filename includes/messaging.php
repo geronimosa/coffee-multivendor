@@ -52,7 +52,7 @@ function messaging_generate_slip_image(int $orderId,int $vendorId): string
     if($signingKey==='')throw new RuntimeException('Receipt signing key is not configured.');
     $signature=hash_hmac('sha256',$orderId.'|'.$vendorId.'|'.$expires,$signingKey);
     $url=$baseUrl.'/admin/slip_image.php?'.http_build_query(['id'=>$orderId,'rid'=>$vendorId,'expires'=>$expires,'signature'=>$signature]);
-    $process=proc_open(['/usr/bin/wkhtmltoimage','--quiet','--width','300',$url,$output],[1=>['pipe','w'],2=>['pipe','w']],$pipes);
+    $process=proc_open(['/usr/bin/wkhtmltoimage','--quiet','--width','520',$url,$output],[1=>['pipe','w'],2=>['pipe','w']],$pipes);
     if(!is_resource($process))throw new RuntimeException('Could not start receipt image generator.');
     $stdout=stream_get_contents($pipes[1]);fclose($pipes[1]);
     $stderr=stream_get_contents($pipes[2]);fclose($pipes[2]);
@@ -91,7 +91,7 @@ function send_order_ready_message(PDO $pdo,int $vendorId,int $orderId): array
     $region=$credentials['region']==='us1'?null:$credentials['region'];
     $client=new \Twilio\Rest\Client($credentials['username'],$credentials['password'],$credentials['account_sid'],$region);
     $body=sprintf('%s: Order #%d for %s is ready. Total R%s.',(string)$order['vendor_name'],$orderId,(string)$order['name'],number_format((float)$order['total'],2,'.',''));
-    $errors=[];
+    $errors=[];$sent=[];
     foreach(messaging_channels($config) as $channel){
         try{
             if($channel==='sms'){
@@ -111,9 +111,10 @@ function send_order_ready_message(PDO $pdo,int $vendorId,int $orderId): array
                 $message=$client->messages->create($waTo,$payload);
             }
             message_delivery_log($pdo,$vendorId,$orderId,$channel,$to,'queued',(string)$message->sid);
-            return ['sent'=>true,'channel'=>$channel,'sid'=>(string)$message->sid];
+            $sent[$channel]=(string)$message->sid;
         }catch(Throwable $e){$errors[]=$channel.': '.$e->getMessage();message_delivery_log($pdo,$vendorId,$orderId,$channel,$to,'failed',null,$e->getMessage());}
     }
+    if($sent)return ['sent'=>true,'channels'=>array_keys($sent),'sids'=>$sent];
     error_log('Order-ready messaging failed for order '.$orderId.': '.implode('; ',$errors));
     return ['sent'=>false,'reason'=>'all_channels_failed'];
 }
