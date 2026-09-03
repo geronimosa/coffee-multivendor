@@ -1,6 +1,6 @@
 # QRKiosk development handover
 
-Last verified: 2 September 2026 (Africa/Johannesburg)
+Last verified: 3 September 2026 (Africa/Johannesburg)
 
 ## Repository and environments
 
@@ -20,6 +20,8 @@ Last verified: 2 September 2026 (Africa/Johannesburg)
 The live site is a PHP/MySQL multi-vendor kiosk demo being evolved into QRKiosk, an event-focused ordering platform. Customers order and pay at their leisure and collect only when ready. Each vendor has an independent customer storefront, staff fulfilment portal, brand configuration, credentials, products and orders.
 
 Completed and deployed:
+
+- Bricklane Eatery demo vendor (`bricklane-eatery`) with Ruan assigned as vendor admin, 262 transcribed products, a BLE logo asset, restaurant/table-service configuration, a 10% default service charge and 40 active dining tables. The idempotent source seed is `scripts/seed_bricklane_eatery.php`; run it only with `--confirm`, and use `--dry-run` first. Menu descriptions and selectable side/sauce modifier groups are not represented because the current product schema supports names, categories, prices and simple price variants only. Confirm the menu transcription with the client before treating it as production data.
 
 - Public event landing page at `/`, including original optimized multi-vendor event artwork.
 - Pretty vendor customer URLs: `/shop/{vendor-slug}`.
