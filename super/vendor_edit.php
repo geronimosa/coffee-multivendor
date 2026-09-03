@@ -80,14 +80,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existingTwilio = $vendorId ? integration_for_vendor($pdo, $vendorId, 'twilio') : null;
         $existingConfig = $existingTwilio ? integration_config($existingTwilio) : [];
         $sid = trim((string) ($_POST['twilio_account_sid'] ?? '')) ?: ($existingConfig['account_sid'] ?? '');
+        $authMethod = ($_POST['twilio_auth_method'] ?? '') === 'api_key' ? 'api_key' : 'auth_token';
         $token = trim((string) ($_POST['twilio_auth_token'] ?? '')) ?: ($existingConfig['auth_token'] ?? '');
+        $apiKeySid = trim((string) ($_POST['twilio_api_key_sid'] ?? '')) ?: ($existingConfig['api_key_sid'] ?? '');
+        $apiKeySecret = trim((string) ($_POST['twilio_api_key_secret'] ?? '')) ?: ($existingConfig['api_key_secret'] ?? '');
         $primary = in_array($_POST['twilio_primary_channel'] ?? '', ['sms','whatsapp'], true) ? (string) $_POST['twilio_primary_channel'] : 'sms';
         $fallback = in_array($_POST['twilio_fallback_channel'] ?? '', ['sms','whatsapp'], true) ? (string) $_POST['twilio_fallback_channel'] : 'none';
         $smsFrom = trim((string) ($_POST['twilio_sms_from'] ?? '')) ?: ($existingConfig['sms_from'] ?? '');
         $messagingServiceSid = trim((string) ($_POST['twilio_messaging_service_sid'] ?? '')) ?: ($existingConfig['messaging_service_sid'] ?? '');
         $whatsappFrom = trim((string) ($_POST['twilio_whatsapp_from'] ?? '')) ?: ($existingConfig['whatsapp_from'] ?? '');
-        if ($sid === '' || $token === '') {
-            $error = 'Account SID and Auth Token are required before enabling Twilio messaging.';
+        if ($sid === '') {
+            $error = 'Account SID is required before enabling Twilio messaging.';
+        } elseif ($authMethod === 'auth_token' && $token === '') {
+            $error = 'Auth Token is required for Auth Token authentication.';
+        } elseif ($authMethod === 'api_key' && ($apiKeySid === '' || $apiKeySecret === '')) {
+            $error = 'API Key SID and API Key Secret are required for API Key authentication.';
         } elseif ($primary === 'sms' && $smsFrom === '' && $messagingServiceSid === '') {
             $error = 'Enter an SMS sender or Messaging Service SID before enabling SMS.';
         } elseif ($primary === 'whatsapp' && $whatsappFrom === '') {
@@ -155,7 +162,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 save_vendor_integration($pdo, $vendorId, 'twilio', 'live', !empty($_POST['twilio_enabled']), [
                     'account_sid' => $_POST['twilio_account_sid'] ?? '',
+                    'auth_method' => $_POST['twilio_auth_method'] ?? 'auth_token',
                     'auth_token' => $_POST['twilio_auth_token'] ?? '',
+                    'api_key_sid' => $_POST['twilio_api_key_sid'] ?? '',
+                    'api_key_secret' => $_POST['twilio_api_key_secret'] ?? '',
+                    'region' => $_POST['twilio_region'] ?? 'us1',
                     'primary_channel' => $_POST['twilio_primary_channel'] ?? 'sms',
                     'fallback_channel' => $_POST['twilio_fallback_channel'] ?? 'none',
                     'sms_from' => $_POST['twilio_sms_from'] ?? '',
@@ -301,10 +312,14 @@ require __DIR__ . '/_header.php';
     <div><label><input type="checkbox" name="zapper_enabled" value="1" <?= !empty($zapper['enabled'])?'checked':'' ?>> Enable Zapper</label></div>
     <?php if ($zapper): ?><div><label><input type="checkbox" name="clear_zapper" value="1"> Remove saved Zapper credentials</label></div><?php endif; ?>
 </div></section>
-<?php $twilioPrimary=$twilioConfig['primary_channel']??(!empty($twilioConfig['whatsapp_from'])?'whatsapp':'sms');$twilioFallback=$twilioConfig['fallback_channel']??'none';?>
+<?php $twilioPrimary=$twilioConfig['primary_channel']??(!empty($twilioConfig['whatsapp_from'])?'whatsapp':'sms');$twilioFallback=$twilioConfig['fallback_channel']??'none';$twilioAuthMethod=$twilioConfig['auth_method']??'auth_token';?>
 <section class="card"><h2>Messaging via Twilio</h2><p class="muted">Send transactional order updates by SMS or WhatsApp. SMS is recommended as the default. Saved credentials: <?= e($twilio['config_hint'] ?? 'Not configured') ?>.</p><div class="grid">
     <div><label for="twilio_account_sid">Account SID</label><input id="twilio_account_sid" type="password" name="twilio_account_sid" autocomplete="new-password"></div>
-    <div><label for="twilio_auth_token">Auth token</label><input id="twilio_auth_token" type="password" name="twilio_auth_token" autocomplete="new-password"></div>
+    <div><label for="twilio_auth_method">Authentication method</label><select id="twilio_auth_method" name="twilio_auth_method"><option value="auth_token" <?=$twilioAuthMethod==='auth_token'?'selected':''?>>Account Auth Token</option><option value="api_key" <?=$twilioAuthMethod==='api_key'?'selected':''?>>API Key</option></select></div>
+    <div><label for="twilio_auth_token">Auth Token</label><input id="twilio_auth_token" type="password" name="twilio_auth_token" autocomplete="new-password"><small>Only required when using Account Auth Token.</small></div>
+    <div><label for="twilio_api_key_sid">API Key SID</label><input id="twilio_api_key_sid" type="password" name="twilio_api_key_sid" autocomplete="new-password" placeholder="SK..."><small>The key identifier, not its display name.</small></div>
+    <div><label for="twilio_api_key_secret">API Key Secret</label><input id="twilio_api_key_secret" type="password" name="twilio_api_key_secret" autocomplete="new-password"><small>Leave blank later to retain the saved secret.</small></div>
+    <div><label for="twilio_region">Region</label><select id="twilio_region" name="twilio_region"><option value="us1" <?=($twilioConfig['region']??'us1')==='us1'?'selected':''?>>United States (US1)</option><option value="ie1" <?=($twilioConfig['region']??'')==='ie1'?'selected':''?>>Ireland (IE1)</option><option value="au1" <?=($twilioConfig['region']??'')==='au1'?'selected':''?>>Australia (AU1)</option></select></div>
     <div><label for="twilio_primary_channel">Primary channel</label><select id="twilio_primary_channel" name="twilio_primary_channel"><option value="sms" <?=$twilioPrimary==='sms'?'selected':''?>>SMS</option><option value="whatsapp" <?=$twilioPrimary==='whatsapp'?'selected':''?>>WhatsApp</option></select></div>
     <div><label for="twilio_fallback_channel">Fallback channel</label><select id="twilio_fallback_channel" name="twilio_fallback_channel"><option value="none" <?=in_array($twilioFallback,['','none'],true)?'selected':''?>>No fallback</option><option value="sms" <?=$twilioFallback==='sms'?'selected':''?>>SMS</option><option value="whatsapp" <?=$twilioFallback==='whatsapp'?'selected':''?>>WhatsApp</option></select></div>
     <div><label for="twilio_sms_from">SMS sender number</label><input id="twilio_sms_from" name="twilio_sms_from" placeholder="+27..."></div>

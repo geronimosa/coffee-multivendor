@@ -19,6 +19,17 @@ function messaging_channels(array $config): array
     return ($fallback && $fallback!==$primary && in_array($fallback,['sms','whatsapp'],true))?[$primary,$fallback]:[$primary];
 }
 
+function twilio_client_credentials(array $config): array
+{
+    $method=($config['auth_method']??'auth_token')==='api_key'?'api_key':'auth_token';
+    $accountSid=trim((string)($config['account_sid']??''));
+    $region=strtolower(trim((string)($config['region']??'us1'))) ?: 'us1';
+    if($method==='api_key'){
+        return ['method'=>$method,'username'=>trim((string)($config['api_key_sid']??'')),'password'=>(string)($config['api_key_secret']??''),'account_sid'=>$accountSid,'region'=>$region];
+    }
+    return ['method'=>$method,'username'=>$accountSid,'password'=>(string)($config['auth_token']??''),'account_sid'=>null,'region'=>$region];
+}
+
 function message_delivery_log(PDO $pdo,int $vendorId,?int $orderId,string $channel,string $recipient,string $status,?string $sid=null,?string $error=null): void
 {
     $pdo->prepare('INSERT INTO message_deliveries(vendor_id,order_id,channel,recipient,event_type,provider_message_sid,status,error_message) VALUES(?,?,?,?,\'order_ready\',?,?,?)')->execute([$vendorId,$orderId,$channel,$recipient,$sid,$status,$error?mb_substr($error,0,255):null]);
@@ -36,7 +47,10 @@ function send_order_ready_message(PDO $pdo,int $vendorId,int $orderId): array
         if(!is_file($autoload))throw new RuntimeException('Twilio SDK is not installed.');
         require_once $autoload;
     }
-    $client=new \Twilio\Rest\Client((string)($config['account_sid']??''),(string)($config['auth_token']??''));
+    $credentials=twilio_client_credentials($config);
+    if($credentials['username']===''||$credentials['password']===''||($credentials['method']==='api_key'&&$credentials['account_sid']===''))throw new RuntimeException('Twilio authentication is incomplete.');
+    $region=$credentials['region']==='us1'?null:$credentials['region'];
+    $client=new \Twilio\Rest\Client($credentials['username'],$credentials['password'],$credentials['account_sid'],$region);
     $body=sprintf('%s: Order #%d for %s is ready. Total R%s.',(string)$order['vendor_name'],$orderId,(string)$order['name'],number_format((float)$order['total'],2,'.',''));
     $errors=[];
     foreach(messaging_channels($config) as $channel){

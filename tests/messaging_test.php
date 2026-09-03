@@ -12,5 +12,7 @@ $expect(messaging_phone_e164('123'), null, 'Invalid phone number was accepted.')
 $expect(messaging_channels(['primary_channel'=>'sms','fallback_channel'=>'whatsapp']), ['sms','whatsapp'], 'Fallback ordering failed.');
 $expect(messaging_channels(['primary_channel'=>'sms','fallback_channel'=>'sms']), ['sms'], 'Duplicate fallback was retained.');
 $expect(messaging_channels(['whatsapp_from'=>'whatsapp:+27000000000']), ['whatsapp'], 'Legacy WhatsApp configuration was not preserved.');
+$expect(twilio_client_credentials(['auth_method'=>'api_key','account_sid'=>'AC123','api_key_sid'=>'SK123','api_key_secret'=>'secret','region'=>'us1']), ['method'=>'api_key','username'=>'SK123','password'=>'secret','account_sid'=>'AC123','region'=>'us1'], 'API Key credentials were not constructed correctly.');
+$expect(twilio_client_credentials(['account_sid'=>'AC123','auth_token'=>'token']), ['method'=>'auth_token','username'=>'AC123','password'=>'token','account_sid'=>null,'region'=>'us1'], 'Legacy Auth Token credentials were not preserved.');
 
 echo "Messaging helper test passed.\n";
