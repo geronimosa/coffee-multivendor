@@ -43,6 +43,7 @@ Completed and deployed:
 - Edge staff access at `http://home.local/vendor/vendor-1`: super-admin can create multiple named, optionally expiring 10-character user keys per vendor; only hashes synchronize to the Pi, keys can be revoked independently, and fulfilment actions retain the acting username. The local queues support manual-payment confirmation and Pending -> Preparing -> Ready -> Collected -> Archived lifecycle controls.
 - Edge order synchronization: new/changed local orders and staff events upload in signed, idempotent batches on the one-minute timer. The staff portal keeps sync controls/status under its Admin tab. A separate persistent daily reconciliation timer resends the complete local ledger around 03:00; the first live reconciliation preserved the central totals at two Edge orders and eight unique events with zero local records pending.
 - Central Edge staff-key management supports in-place Regenerate (the prior key becomes invalid after sync without adding another visible username row) and independent Revoke. Keys default to no expiry; an expiry remains optional.
+- Vendor operating modes now support existing kiosk/food-truck service and restaurant/table service. Restaurant vendors have permanent table QR codes, open table tabs, optional guest/person splits, kitchen rounds, item-level special instructions, service charges, tips, manual split-payment recording, and guarded table closure after settlement.
 
 ## Applied database migrations
 
@@ -56,6 +57,7 @@ Verified in production:
 6. `006_edge_devices.sql`
 7. `007_edge_staff_access.sql`
 8. `008_edge_order_sync.sql`
+9. `009_restaurant_service.sql`
 
 Do not modify an applied migration. Add the next numbered migration and run `php scripts/migrate.php` from the server git worktree before deploying code that depends on it.
 

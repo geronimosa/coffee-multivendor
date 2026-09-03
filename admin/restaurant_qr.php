@@ -5,12 +5,12 @@ require_once '../includes/phpqrcode/qrlib.php';
 $restaurantId = $_GET['rid'] ?? null;
 if (!$restaurantId) die("Missing restaurant ID");
 
-$stmt = $pdo->prepare("SELECT name FROM restaurants WHERE id = ?");
+$stmt = $pdo->prepare("SELECT name, slug FROM restaurants WHERE id = ?");
 $stmt->execute([$restaurantId]);
 $restaurant = $stmt->fetch();
 if (!$restaurant) die("Restaurant not found");
 
-$menuUrl = "https://coffee.tatu.co.za/menu.php?rid=$restaurantId";
+$menuUrl = 'https://coffee.tatu.co.za/shop/' . rawurlencode($restaurant['slug']);
 
 // Generate large QR code to temp file
 $qrTemp = tempnam(sys_get_temp_dir(), 'qr');

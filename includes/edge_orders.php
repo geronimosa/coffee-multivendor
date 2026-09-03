@@ -117,11 +117,11 @@ function sync_edge_orders(PDO $pdo, array $device, array $input): array
                 $menuCheck->execute([$menuItemId, $device['vendor_id']]);
                 $menuItemId = $menuCheck->fetchColumn() ? $menuItemId : null;
                 $stmt = $pdo->prepare(
-                    'INSERT IGNORE INTO order_items (order_id,origin_line_id,menu_item_id,item_name,variant_label,unit_price,quantity) VALUES (?,?,?,?,?,?,?)'
+                    'INSERT IGNORE INTO order_items (order_id,origin_line_id,menu_item_id,item_name,variant_label,item_note,unit_price,quantity) VALUES (?,?,?,?,?,?,?,?)'
                 );
                 $stmt->execute([
                     $orderId, (int) $item['origin_line_id'], $menuItemId,
-                    edge_sync_string($item['item_name'], 255, true), edge_sync_string($item['variant_label'] ?? null, 100),
+                    edge_sync_string($item['item_name'], 255, true), edge_sync_string($item['variant_label'] ?? null, 100), edge_sync_string($item['item_note'] ?? null, 250),
                     edge_sync_decimal($item['unit_price']), (int) $item['quantity'],
                 ]);
             }

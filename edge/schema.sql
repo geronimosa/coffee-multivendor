@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     remote_menu_item_id INTEGER NOT NULL,
     item_name TEXT NOT NULL,
     variant_label TEXT,
+    item_note TEXT,
     quantity INTEGER NOT NULL,
     unit_price TEXT NOT NULL,
     subtotal TEXT NOT NULL

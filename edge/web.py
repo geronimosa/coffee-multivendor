@@ -133,8 +133,8 @@ def verified_cart() -> list[dict]:
         label, price = selection
         verified.append(
             {
-                "key": f"{item['id']}:{label}", "item_id": item["id"], "name": item["name"],
-                "variant": label, "quantity": quantity, "unit_price": price,
+                "key": str(entry.get("key", f"{item['id']}:{label}")), "item_id": item["id"], "name": item["name"],
+                "variant": label, "note": str(entry.get("note", ""))[:250], "quantity": quantity, "unit_price": price,
                 "subtotal": price * quantity,
             }
         )
@@ -177,7 +177,11 @@ def storefront(slug: str):
         abort(404)
 
     rows = database().execute(
-        "SELECT id,name,category,price,variant_options FROM menu_items ORDER BY category,name,id"
+        """SELECT id,name,category,price,variant_options FROM menu_items
+           ORDER BY CASE category
+             WHEN 'Coffee' THEN 1 WHEN 'Hot Drinks' THEN 2 WHEN 'Cold Drinks' THEN 3
+             WHEN 'Breakfast' THEN 4 WHEN 'Bakery' THEN 5 WHEN 'Light Meals' THEN 6
+             WHEN 'Extras' THEN 7 ELSE 8 END, category,name,id"""
     ).fetchall()
     groups: dict[str, list[dict]] = {}
     for row in rows:
@@ -202,7 +206,7 @@ def add_to_cart():
         if not field.startswith("quantity_"):
             continue
         try:
-            item_id = int(field.removeprefix("quantity_"))
+            item_id = int(field[len("quantity_"):])
             quantity = max(0, min(20, int(value)))
         except ValueError:
             continue
@@ -215,10 +219,13 @@ def add_to_cart():
         if selection is None:
             continue
         label, _price = selection
-        key = f"{item_id}:{label}"
+        note = request.form.get(f"note_{item_id}", "").strip()[:250]
+        key = f"{item_id}:{hashlib.sha256((label + chr(0) + note).encode()).hexdigest()}"
         cart[key] = {
+            "key": key,
             "item_id": item_id,
             "variant": label,
+            "note": note,
             "quantity": min(20, int(cart.get(key, {}).get("quantity", 0)) + quantity),
         }
     session["cart"] = cart
@@ -286,10 +293,10 @@ def confirm_order():
         order_id = cursor.lastrowid
         for item in items:
             connection.execute(
-                "INSERT INTO order_items (order_id,remote_menu_item_id,item_name,variant_label,quantity,unit_price,subtotal) "
-                "VALUES (?,?,?,?,?,?,?)",
+                "INSERT INTO order_items (order_id,remote_menu_item_id,item_name,variant_label,item_note,quantity,unit_price,subtotal) "
+                "VALUES (?,?,?,?,?,?,?,?)",
                 (
-                    order_id, item["item_id"], item["name"], item["variant"], item["quantity"],
+                    order_id, item["item_id"], item["name"], item["variant"], item["note"] or None, item["quantity"],
                     str(item["unit_price"]), str(item["subtotal"]),
                 ),
             )
@@ -311,7 +318,7 @@ def order_status():
     if order is None:
         abort(404)
     items = database().execute(
-        "SELECT item_name,variant_label,quantity,unit_price,subtotal FROM order_items WHERE order_id=? ORDER BY id",
+        "SELECT item_name,variant_label,item_note,quantity,unit_price,subtotal FROM order_items WHERE order_id=? ORDER BY id",
         (order["id"],),
     ).fetchall()
     return render_template("order_status.html", vendor=assigned_vendor(), order=order, items=items)
@@ -375,7 +382,7 @@ def staff_portal(slug: str):
     order_rows = []
     for order in orders:
         items = database().execute(
-            "SELECT item_name,variant_label,quantity FROM order_items WHERE order_id=? ORDER BY id", (order["id"],)
+            "SELECT item_name,variant_label,item_note,quantity,unit_price,subtotal FROM order_items WHERE order_id=? ORDER BY id", (order["id"],)
         ).fetchall()
         order_rows.append({"order": order, "items": items})
     sync_state = dict(database().execute(

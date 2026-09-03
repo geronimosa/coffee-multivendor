@@ -90,7 +90,7 @@ class StorefrontTests(unittest.TestCase):
             "/cart.php",
             data={
                 "csrf_token": self.csrf(shop), "slug": "test-coffee",
-                "variant_11": "Standard", "quantity_11": "2",
+                "variant_11": "Standard", "quantity_11": "2", "note_11": "Extra hot",
             },
         )
         checkout = self.client.get("/checkout.php")
@@ -110,6 +110,8 @@ class StorefrontTests(unittest.TestCase):
         ).fetchone()
         connection.close()
         self.assertEqual(saved, ("edge", "a" * 32, "64.00", "manual", "unpaid"))
+        note = sqlite3.connect(self.data_dir / "edge.db").execute("SELECT item_note FROM order_items").fetchone()[0]
+        self.assertEqual(note, "Extra hot")
 
     def test_staff_can_fulfil_manual_order_and_key_revocation_ends_session(self):
         self.create_order()
@@ -127,6 +129,11 @@ class StorefrontTests(unittest.TestCase):
         )
         self.assertIn(b"Fulfilment queue", accepted.data)
         self.assertIn(b"Test Customer", accepted.data)
+        self.assertIn(b"Tap order for full till slip", accepted.data)
+        self.assertIn(b"2 \xc3\x97 Flat White", accepted.data)
+        self.assertIn(b"R64.00", accepted.data)
+        self.assertIn(b"Special instruction: Extra hot", accepted.data)
+        self.assertIn(b'receipt-dialog', accepted.data)
         self.assertNotIn(b"Sync now", accepted.data)
         admin = self.client.get("/vendor/test-coffee?tab=admin")
         self.assertIn(b"Central sync", admin.data)

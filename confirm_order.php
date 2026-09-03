@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'includes/db.php';
+require_once 'includes/restaurant_service.php';
 
 $restaurantId = $_GET['rid'] ?? null;
 $cart = $_SESSION['cart'] ?? [];
@@ -13,11 +14,15 @@ if ( empty($cart)) {
 }
 $logout=$_GET['logout'] ?? null;
 
-$name = trim($_POST['name'] ?? '');
-$phone = trim($_POST['phone'] ?? '');
+$name = trim(mb_substr((string)($_POST['name'] ?? ''),0,100));
+$phone = trim(mb_substr((string)($_POST['phone'] ?? ''),0,20));
 
-if (empty($name) || empty($phone)) {
-    die("Name and phone number are required.");
+$stmt=$pdo->prepare("SELECT * FROM restaurants WHERE id=? AND status='active'");$stmt->execute([$restaurantId]);$restaurant=$stmt->fetch(PDO::FETCH_ASSOC);
+if(!$restaurant){die('Restaurant not found.');}
+$isRestaurant=($restaurant['service_model']??'kiosk')==='restaurant';
+
+if (empty($name) || (!$isRestaurant && empty($phone))) {
+    die($isRestaurant ? "Your name or seat is required." : "Name and phone number are required.");
 }
 
 // Calculate total
@@ -28,25 +33,36 @@ foreach ($cart as $item) {
 
 $token = bin2hex(random_bytes(8));
 
-// Insert order
-$stmt = $pdo->prepare("INSERT INTO orders (restaurant_id, name, phone, total, token, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW())");
-$stmt->execute([$restaurantId, $name, $phone, $total, $token]);
-$order_id = $pdo->lastInsertId();
-
-// Insert order items
-$itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, menu_item_id, variant_label, quantity, unit_price) VALUES (?, ?, ?, ?, ?)");
-foreach ($cart as $item) {
-    $itemStmt->execute([
-        $order_id,
-        $item['id'],
-        $item['variant'],
-        $item['qty'],
-        $item['unit_price']
-    ]);
-}
+$tableTabId=null;$tabGuestId=null;$roundNumber=null;$table=null;
+$pdo->beginTransaction();
+try {
+    if($isRestaurant){
+        $context=$_SESSION['table_contexts'][(int)$restaurantId]??null;
+        if(!$context||empty($context['token'])||!($table=dining_table_by_token($pdo,(int)$restaurantId,(string)$context['token']))){throw new RuntimeException('Please scan the QR code on your table again.');}
+        $tab=open_table_tab($pdo,(int)$restaurantId,(int)$table['id']);$tableTabId=(int)$tab['id'];
+        $guestToken=(string)($_SESSION['table_guests'][$tableTabId]??'');$guest=null;
+        if($guestToken!==''){$stmt=$pdo->prepare('SELECT * FROM tab_guests WHERE table_tab_id=? AND guest_token=?');$stmt->execute([$tableTabId,$guestToken]);$guest=$stmt->fetch();}
+        if(!$guest){$guestToken=bin2hex(random_bytes(16));$pdo->prepare('INSERT INTO tab_guests(table_tab_id,display_name,guest_token) VALUES(?,?,?)')->execute([$tableTabId,$name,$guestToken]);$tabGuestId=(int)$pdo->lastInsertId();$_SESSION['table_guests'][$tableTabId]=$guestToken;}
+        else{$tabGuestId=(int)$guest['id'];$pdo->prepare('UPDATE tab_guests SET display_name=? WHERE id=?')->execute([$name,$tabGuestId]);}
+        $stmt=$pdo->prepare('SELECT COALESCE(MAX(round_number),0)+1 FROM orders WHERE table_tab_id=?');$stmt->execute([$tableTabId]);$roundNumber=(int)$stmt->fetchColumn();
+    }
+    $stmt = $pdo->prepare("INSERT INTO orders (restaurant_id,table_tab_id,tab_guest_id,service_type,round_number,name,phone,total,token,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,'pending',NOW())");
+    $stmt->execute([$restaurantId,$tableTabId,$tabGuestId,$isRestaurant?'table':'kiosk',$roundNumber,$name,$phone,$total,$token]);
+    $order_id = $pdo->lastInsertId();
+    $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id,menu_item_id,variant_label,item_note,quantity,unit_price) VALUES (?,?,?,?,?,?)");
+    foreach ($cart as $item) {$itemStmt->execute([$order_id,$item['id'],$item['variant'],($item['note']??'')?:null,$item['qty'],$item['unit_price']]);}
+    if($tableTabId)refresh_table_tab_totals($pdo,$tableTabId);
+    $pdo->commit();
+} catch(Throwable $exception){if($pdo->inTransaction())$pdo->rollBack();http_response_code(400);exit(htmlspecialchars($exception->getMessage()));}
 
 // Clear the cart
 unset($_SESSION['cart']);
+unset($_SESSION['carts'][(int)$restaurantId]);
+
+if($isRestaurant){
+    header('Location: /order_status.php?token='.urlencode($token));
+    exit;
+}
 
 // Fetch restaurant SnapScan info
 $stmt = $pdo->prepare("SELECT name, snapscan_api_key, snapscan_code FROM restaurants WHERE id = ?");

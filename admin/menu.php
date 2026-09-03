@@ -1,64 +1,11 @@
 <?php
-require_once '../includes/db.php';
-
-$restaurantId = $_GET['rid'] ?? null;
-if (!$restaurantId) die("Missing restaurant ID");
-
-// Fetch restaurant name
-$stmt = $pdo->prepare("SELECT name FROM restaurants WHERE id = ?");
-$stmt->execute([$restaurantId]);
-$restaurant = $stmt->fetch();
-
-if (!$restaurant) die("Restaurant not found");
-
-// Fetch menu items
-$stmt = $pdo->prepare("SELECT * FROM menu_items WHERE restaurant_id = ?");
-$stmt->execute([$restaurantId]);
-$items = $stmt->fetchAll();
+declare(strict_types=1);
+require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../includes/vendor_auth.php';
+$legacyId=filter_input(INPUT_GET,'rid',FILTER_VALIDATE_INT)?:0;$slug=trim((string)($_GET['slug']??''));$stmt=$pdo->prepare($slug!==''?'SELECT id,name,slug FROM restaurants WHERE slug=? LIMIT 1':'SELECT id,name,slug FROM restaurants WHERE id=? LIMIT 1');$stmt->execute([$slug!==''?$slug:$legacyId]);$restaurant=$stmt->fetch();if(!$restaurant){http_response_code(404);exit('Vendor not found.');}$restaurantId=(int)$restaurant['id'];if($slug===''&&$legacyId)redirect('/product/'.rawurlencode($restaurant['slug']));require_vendor_admin_access($pdo,$restaurantId,$restaurant['slug']);
+$stmt=$pdo->prepare("SELECT * FROM menu_items WHERE restaurant_id=? ORDER BY CASE category WHEN 'Coffee' THEN 1 WHEN 'Hot Drinks' THEN 2 WHEN 'Cold Drinks' THEN 3 WHEN 'Breakfast' THEN 4 WHEN 'Bakery' THEN 5 WHEN 'Light Meals' THEN 6 WHEN 'Extras' THEN 7 ELSE 8 END,category,name");$stmt->execute([$restaurantId]);$items=$stmt->fetchAll();$groups=[];foreach($items as $item)$groups[$item['category']?:'Menu'][]=$item;
+$isSuper=($_SESSION['user_role']??'')==='super_admin';$backUrl=$isSuper?'/super/':'/vendor/'.rawurlencode($restaurant['slug']);
 ?>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title><?= htmlspecialchars($restaurant['name']) ?> - Menu</title>
-    <style>
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; }
-        th { background-color: #f2f2f2; }
-        pre { white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; }
-    </style>
-    <link rel="stylesheet" href="/coffee/assets/css/theme.css">
-</head>
-<body>
-
-<h2><?= htmlspecialchars($restaurant['name']) ?> - Menu Management</h2>
-<a href="dashboard.php?rid=<?= $restaurantId ?>">⬅ Back to Dashboard</a>
-
-<table>
-    <tr>
-        <th>Name</th>
-        <th>Category</th>
-        <th>Base Price</th>
-        <th>Variants</th>
-        <th>Actions</th>
-    </tr>
-    <?php foreach ($items as $item): ?>
-    <tr>
-        <td><?= htmlspecialchars($item['name']) ?></td>
-        <td><?= htmlspecialchars($item['category']) ?></td>
-        <td>R<?= number_format($item['price'], 2) ?></td>
-        <td>
-            <pre><?= json_encode(json_decode($item['variant_options'], true), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?></pre>
-        </td>
-        <td>
-            <a href="menu_edit.php?id=<?= $item['id'] ?>&rid=<?= $restaurantId ?>">Edit</a>
-        </td>
-    </tr>
-    <?php endforeach; ?>
-</table>
-
-<br>
-<a href="menu_add.php?rid=<?= $restaurantId ?>"><button>Add New Item</button></a>
-
-</body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($restaurant['name'])?> products</title><link rel="stylesheet" href="/assets/css/super-admin.css?v=20260903-1"></head><body><header class="topbar"><a href="<?=e($backUrl)?>">QRKiosk · <?=e($restaurant['name'])?></a><a href="<?=e($backUrl)?>">Back to <?=$isSuper?'vendors':'staff'?></a></header><main class="container product-admin"><div class="actions vendor-toolbar"><div><p class="section-kicker">Menu management</p><h1>Products</h1><p class="muted"><?=count($items)?> products across <?=count($groups)?> categories</p></div><a class="button" href="/product/<?=e($restaurant['slug'])?>/new">Add product</a></div>
+<?php foreach($groups as $category=>$categoryItems):?><section class="product-group"><div class="product-group-head"><h2><?=e($category)?></h2><span><?=count($categoryItems)?> items</span></div><div class="product-admin-grid"><?php foreach($categoryItems as $item):$variants=json_decode($item['variant_options']?:'[]',true)?:[['label'=>'Standard','price'=>(float)$item['price']]];?><article class="card product-admin-card"><div><h3><?=e($item['name'])?></h3><p class="muted">From R<?=number_format((float)min(array_column($variants,'price')),2)?></p></div><div class="variant-chips"><?php foreach($variants as $variant):?><span><?=e((string)$variant['label'])?> <strong>R<?=number_format((float)$variant['price'],2)?></strong></span><?php endforeach;?></div><a class="button secondary" href="/product/<?=e($restaurant['slug'])?>/<?=(int)$item['id']?>/edit">Edit product</a></article><?php endforeach;?></div></section><?php endforeach;?>
+<?php if(!$items):?><section class="card"><h2>No products yet</h2><p class="muted">Add the first product to publish this vendor's menu.</p></section><?php endif;?></main></body></html>

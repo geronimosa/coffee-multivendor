@@ -26,6 +26,10 @@
                 <span>Collect when ready</span>
             </div>
         </div>
+        <figure class="hero-device">
+            <img src="/assets/images/kiosk-customer-ordering.jpg" width="1200" height="900" alt="QRKiosk Edge customer ordering screen showing a cafe menu on the kiosk device">
+            <figcaption><span>Customer ordering</span><strong>Browse. Order. Collect.</strong></figcaption>
+        </figure>
         <div class="event-note"><strong>One event.</strong><span>Many vendors.</span><span>One simple experience.</span></div>
     </section>
 
@@ -33,6 +37,26 @@
         <article><span>01</span><h2>Reduce event queues</h2><p>Guests place orders without crowding vendor counters, keeping walkways and service areas clearer.</p></article>
         <article><span>02</span><h2>Order at leisure</h2><p>Customers choose and pay when it suits them, then return to the kiosk only for collection.</p></article>
         <article><span>03</span><h2>Built for demanding venues</h2><p>Multiple vendors, secure payment tracking and live fulfilment remain manageable when mobile coverage struggles.</p></article>
+    </section>
+
+    <section class="technology" aria-labelledby="technology-heading">
+        <div class="technology-head">
+            <div>
+                <p class="section-label">The technology in action</p>
+                <h2 id="technology-heading">From order to collection,<br><em>right at the venue.</em></h2>
+            </div>
+            <p>QRKiosk Edge keeps the customer storefront and staff fulfilment tools close to the point of service, giving each side a clear, purpose-built view.</p>
+        </div>
+        <div class="technology-grid">
+            <figure class="technology-shot">
+                <img src="/assets/images/kiosk-fulfilment-detail.jpg" width="1200" height="900" loading="lazy" alt="Close view of the QRKiosk Edge fulfilment queue running on the kiosk device">
+                <figcaption><span>02 · Edge operation</span><strong>Venue-ready local service</strong><p>The on-site device keeps the ordering experience available close to the venue operation.</p></figcaption>
+            </figure>
+            <figure class="technology-shot">
+                <img src="/assets/images/kiosk-fulfilment.jpg" width="1200" height="900" loading="lazy" alt="QRKiosk staff fulfilment dashboard showing an order marked as collected">
+                <figcaption><span>03 · Staff fulfilment</span><strong>Every order has a clear next step</strong><p>Staff move work through Pending, Preparing, Ready and Collected queues from one focused dashboard.</p></figcaption>
+            </figure>
+        </div>
     </section>
 
     <section class="vendor-story" aria-labelledby="vendor-heading">

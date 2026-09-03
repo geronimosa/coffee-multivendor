@@ -30,6 +30,7 @@
                     {% if item.variants %}<select name="variant_{{ item.row.id }}" aria-label="{{ item.row.name }} option">{% for variant in item.variants %}<option value="{{ variant.label }}">{{ variant.label }} · R{{ '%.2f'|format(variant.price|float) }}</option>{% endfor %}</select>{% else %}<span><strong>R{{ '%.2f'|format(item.row.price|float) }}</strong></span><input type="hidden" name="variant_{{ item.row.id }}" value="Standard">{% endif %}
                     <input type="number" name="quantity_{{ item.row.id }}" value="0" min="0" max="20" inputmode="numeric" aria-label="{{ item.row.name }} quantity">
                 </div>
+                <textarea class="item-note" name="note_{{ item.row.id }}" maxlength="250" rows="2" placeholder="Special instructions (optional)" aria-label="Special instructions for {{ item.row.name }}"></textarea>
             </article>
         {% endfor %}
         </section>

@@ -8,7 +8,7 @@ require_super_admin();
 
 $vendorId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?: null;
 $vendor = [
-    'name' => '', 'slug' => '', 'status' => 'active', 'contact_email' => '', 'contact_phone' => '',
+    'name' => '', 'slug' => '', 'status' => 'active', 'service_model' => 'kiosk', 'default_service_charge_percent' => '0.00', 'contact_email' => '', 'contact_phone' => '',
     'theme_primary' => '#1F4D3A', 'theme_accent' => '#F2B84B', 'theme_background' => '#F7F5F0',
     'theme_surface' => '#FFFFFF', 'theme_text' => '#17211C', 'logo_path' => null, 'hero_path' => null,
     'storefront_message' => 'Order ahead and collect when it is ready.', 'vendor_description' => '',
@@ -40,6 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $slug = strtolower(trim((string) ($_POST['slug'] ?? '')));
     $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', $slug), '-');
     $status = ($_POST['status'] ?? '') === 'suspended' ? 'suspended' : 'active';
+    $serviceModel = ($_POST['service_model'] ?? '') === 'restaurant' ? 'restaurant' : 'kiosk';
+    $serviceChargePercent = max(0, min(100, (float) ($_POST['default_service_charge_percent'] ?? 0)));
     $contactEmail = trim((string) ($_POST['contact_email'] ?? ''));
     $contactPhone = trim((string) ($_POST['contact_phone'] ?? ''));
     $ownerName = trim((string) ($_POST['owner_name'] ?? ''));
@@ -104,8 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
             if ($vendorId) {
-                $stmt = $pdo->prepare('UPDATE restaurants SET name=?, slug=?, status=?, contact_email=?, contact_phone=? WHERE id=?');
-                $stmt->execute([$name, $slug, $status, $contactEmail ?: null, $contactPhone ?: null, $vendorId]);
+                $stmt = $pdo->prepare('UPDATE restaurants SET name=?, slug=?, status=?, service_model=?, default_service_charge_percent=?, contact_email=?, contact_phone=? WHERE id=?');
+                $stmt->execute([$name, $slug, $status, $serviceModel, $serviceChargePercent, $contactEmail ?: null, $contactPhone ?: null, $vendorId]);
                 if ($stmt->rowCount() === 0) {
                     $check = $pdo->prepare('SELECT id FROM restaurants WHERE id=?');
                     $check->execute([$vendorId]);
@@ -115,8 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $action = 'vendor.updated';
             } else {
-                $stmt = $pdo->prepare('INSERT INTO restaurants (name, slug, status, contact_email, contact_phone, unique_code, uid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-                $stmt->execute([$name, $slug, $status, $contactEmail ?: null, $contactPhone ?: null, bin2hex(random_bytes(12)), bin2hex(random_bytes(24)), $_SESSION['user_id']]);
+                $stmt = $pdo->prepare('INSERT INTO restaurants (name, slug, status, service_model, default_service_charge_percent, contact_email, contact_phone, unique_code, uid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$name, $slug, $status, $serviceModel, $serviceChargePercent, $contactEmail ?: null, $contactPhone ?: null, bin2hex(random_bytes(12)), bin2hex(random_bytes(24)), $_SESSION['user_id']]);
                 $vendorId = (int) $pdo->lastInsertId();
                 $action = 'vendor.created';
             }
@@ -202,6 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $vendor = compact('name', 'slug', 'status') + [
+        'service_model' => $serviceModel, 'default_service_charge_percent' => $serviceChargePercent,
         'contact_email' => $contactEmail, 'contact_phone' => $contactPhone,
         'theme_primary' => $themePrimary, 'theme_accent' => $themeAccent,
         'theme_background' => $themeBackground, 'theme_surface' => $themeSurface, 'theme_text' => $themeText,
@@ -227,6 +230,8 @@ require __DIR__ . '/_header.php';
     <div><label for="contact_email">Contact email</label><input id="contact_email" type="email" name="contact_email" value="<?= e($vendor['contact_email']) ?>"></div>
     <div><label for="contact_phone">Contact phone</label><input id="contact_phone" name="contact_phone" value="<?= e($vendor['contact_phone']) ?>"></div>
     <div><label for="status">Status</label><select id="status" name="status"><option value="active" <?= $vendor['status']==='active'?'selected':'' ?>>Active</option><option value="suspended" <?= $vendor['status']==='suspended'?'selected':'' ?>>Suspended</option></select></div>
+    <div><label for="service_model">Operating type</label><select id="service_model" name="service_model"><option value="kiosk" <?= ($vendor['service_model']??'kiosk')==='kiosk'?'selected':'' ?>>Kiosk / food truck</option><option value="restaurant" <?= ($vendor['service_model']??'')==='restaurant'?'selected':'' ?>>Restaurant / table service</option></select></div>
+    <div><label for="default_service_charge_percent">Default service charge %</label><input id="default_service_charge_percent" type="number" name="default_service_charge_percent" min="0" max="100" step="0.01" value="<?= e((string)($vendor['default_service_charge_percent']??'0.00')) ?>"></div>
 </div></section>
 <section class="card"><h2>Storefront appearance</h2><p class="muted">A restrained brand theme is applied to the customer menu, cart, checkout, and order status.</p><div class="grid">
     <div><label for="theme_primary">Primary color</label><input id="theme_primary" type="color" name="theme_primary" value="<?= e($vendor['theme_primary']) ?>"></div>

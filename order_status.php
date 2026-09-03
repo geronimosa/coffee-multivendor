@@ -6,8 +6,11 @@ if (!$token) die("Missing token");
 
 // Fetch order by token
 $stmt = $pdo->prepare("
-    SELECT o.id, o.status, o.total, o.name, o.phone
+    SELECT o.id,o.status,o.total,o.name,o.phone,o.service_type,o.round_number,r.slug,dt.name table_name,dt.qr_token table_token,tt.total tab_total
     FROM orders o
+    JOIN restaurants r ON r.id=o.restaurant_id
+    LEFT JOIN table_tabs tt ON tt.id=o.table_tab_id
+    LEFT JOIN dining_tables dt ON dt.id=tt.dining_table_id
     WHERE o.token = ?
     LIMIT 1
 ");
@@ -18,7 +21,7 @@ if (!$order) die("Order not found");
 
 // Fetch order items
 $stmt = $pdo->prepare("
-    SELECT oi.variant_label, oi.quantity, oi.unit_price, COALESCE(oi.item_name,m.name,'Item') AS name
+    SELECT oi.variant_label,oi.item_note,oi.quantity,oi.unit_price,COALESCE(oi.item_name,m.name,'Item') AS name
     FROM order_items oi
     LEFT JOIN menu_items m ON oi.menu_item_id = m.id
     WHERE oi.order_id = ?
@@ -65,6 +68,7 @@ $items = $stmt->fetchAll();
 
 <div class="slip">
     <h3>Order #<?= $order['id'] ?></h3>
+    <?php if($order['service_type']==='table'):?><p><strong><?=htmlspecialchars($order['table_name'])?></strong> · Round <?= (int)$order['round_number']?></p><?php endif;?>
     <div class="status">Status: <?= ucfirst($order['status']) ?></div>
 
     <p><strong>Name:</strong><strong><?= htmlspecialchars($order['name']) ?></strong> <?= htmlspecialchars($order['phone']) ?></p>
@@ -74,6 +78,7 @@ $items = $stmt->fetchAll();
         <tr>
             <td colspan="2"><strong><?= htmlspecialchars($item['name']) ?></strong> (<?= htmlspecialchars($item['variant_label']) ?>)</td>
         </tr>
+        <?php if(!empty($item['item_note'])):?><tr><td colspan="2"><em>Special instruction: <?=htmlspecialchars($item['item_note'])?></em></td></tr><?php endif;?>
         <tr>
             <td>Qty: <?= $item['quantity'] ?></td>
             <td align="right">R<?= number_format($item['unit_price'] * $item['quantity'], 2) ?></td>
@@ -82,6 +87,7 @@ $items = $stmt->fetchAll();
     </table>
 
     <p><strong>Total:</strong> R<?= number_format($order['total'], 2) ?></p>
+    <?php if($order['service_type']==='table'):?><p><strong>Open table bill:</strong> R<?=number_format((float)$order['tab_total'],2)?></p><p><a href="/shop/<?=htmlspecialchars($order['slug'])?>/table/<?=htmlspecialchars($order['table_token'])?>">Add another round</a></p><?php endif;?>
 
     <div class="footer">This page refreshes every 10 seconds</div>
 </div>

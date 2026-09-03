@@ -5,7 +5,7 @@ $restaurantId = $_GET['rid'] ?? null;
 if (!$restaurantId) die("Missing restaurant ID");
 
 // Fetch restaurant name
-$stmt = $pdo->prepare("SELECT name FROM restaurants WHERE id = ?");
+$stmt = $pdo->prepare("SELECT name, slug FROM restaurants WHERE id = ?");
 $stmt->execute([$restaurantId]);
 $restaurant = $stmt->fetch();
 
@@ -86,7 +86,7 @@ if (!$restaurant) die("Restaurant not found");
 
         <ul>
             <li><a href="orders.php?rid=<?= $restaurantId ?>">📦 View Orders</a></li>
-            <li><a href="menu.php?rid=<?= $restaurantId ?>">🍽️ Manage Menu</a></li>
+            <li><a href="/product/<?= htmlspecialchars($restaurant['slug']) ?>">🍽️ Manage Products</a></li>
             <li><a href="report.php?rid=<?= $restaurantId ?>">📊 Daily Turnover</a></li>
             <li><a href="restaurant_qr.php?rid=<?= $restaurantId ?>" target="_blank">📱 View Public QR Code</a></li>
         </ul>

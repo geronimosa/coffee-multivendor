@@ -29,3 +29,28 @@
     .sync-strip { align-items: stretch; flex-direction: column; }
     .sync-strip button { width: 100%; }
 }
+
+.receipt-trigger { cursor:pointer; transition:border-color .15s,box-shadow .15s,transform .15s; }
+.receipt-trigger:hover,.receipt-trigger:focus-visible { border-color:var(--brand); box-shadow:0 10px 28px rgba(45,31,22,.12); outline:0; transform:translateY(-1px); }
+.receipt-hint { display:block; margin:.25rem 0 .55rem; color:var(--brand); font-size:.72rem; font-weight:800; }
+.receipt-dialog { width:min(440px,calc(100% - 24px)); max-height:calc(100vh - 24px); padding:0; border:0; border-radius:4px; background:transparent; box-shadow:0 26px 80px #0007; }
+.receipt-dialog::backdrop { background:#10231dc4; backdrop-filter:blur(5px); }
+.receipt-paper { position:relative; padding:30px 27px 25px; overflow:hidden; background:#fffefa; color:#201d1a; font-family:"Courier New",monospace; box-shadow:inset 0 0 35px #7a64450a; }
+.receipt-paper:after { content:""; position:absolute; right:0; bottom:-5px; left:0; height:10px; background:linear-gradient(135deg,transparent 5px,#fffefa 0) 0 0/10px 10px repeat-x; }
+.receipt-close { position:absolute; top:10px; right:10px; width:34px; height:34px; display:grid; place-items:center; padding:0; border-radius:50%; background:color-mix(in srgb,var(--brand) 12%,var(--surface)); color:#3b312b; font:700 1.3rem/1 system-ui; }
+.receipt-paper header { display:flex; flex-direction:column; align-items:center; padding:5px 35px 12px; text-align:center; }
+.receipt-paper header strong { font-size:1.18rem; text-transform:uppercase; letter-spacing:.08em; }
+.receipt-paper header span { margin-top:4px; font-weight:800; }
+.receipt-paper header small { margin-top:3px; opacity:.62; }
+.receipt-rule { height:1px; margin:10px 0; border-top:1px dashed #6d655f; }
+.receipt-customer { margin:12px 0; font-weight:800; }
+.receipt-lines { margin:0; padding:0; list-style:none; }
+.receipt-lines li { display:flex; justify-content:space-between; gap:14px; padding:9px 0; border-bottom:1px dotted #bdb5ae; }
+.receipt-lines li div { display:flex; min-width:0; flex-direction:column; }
+.receipt-lines li span { margin-top:2px; opacity:.66; font-size:.8rem; }
+.receipt-lines li>strong { white-space:nowrap; }
+.receipt-total { display:flex; justify-content:space-between; align-items:center; font-size:1.15rem; text-transform:uppercase; }
+.receipt-paper footer { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+.receipt-paper footer small { font-style:italic; opacity:.65; }
+@media(max-width:480px){.receipt-paper{padding:25px 20px 22px}.receipt-dialog{max-height:calc(100vh - 12px)}}
+.receipt-note{color:#7b321f!important;font-weight:800;font-style:italic;opacity:1!important}

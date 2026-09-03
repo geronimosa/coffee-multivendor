@@ -144,7 +144,7 @@ def order_payload(connection: sqlite3.Connection, force_all: bool, after_id: int
     payload = []
     for order in orders:
         items = connection.execute(
-            "SELECT id,remote_menu_item_id,item_name,variant_label,quantity,unit_price,subtotal "
+            "SELECT id,remote_menu_item_id,item_name,variant_label,item_note,quantity,unit_price,subtotal "
             "FROM order_items WHERE order_id=? ORDER BY id",
             (order["id"],),
         ).fetchall()
@@ -173,6 +173,7 @@ def order_payload(connection: sqlite3.Connection, force_all: bool, after_id: int
                 "remote_menu_item_id": item["remote_menu_item_id"],
                 "item_name": item["item_name"],
                 "variant_label": item["variant_label"],
+                "item_note": item["item_note"],
                 "quantity": item["quantity"],
                 "unit_price": item["unit_price"],
                 "subtotal": item["subtotal"],
@@ -292,6 +293,9 @@ def initialize_database(data_dir: Path) -> sqlite3.Connection:
     if "status_token" not in order_columns:
         connection.execute("ALTER TABLE orders ADD COLUMN status_token TEXT")
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_edge_orders_status_token ON orders(status_token)")
+    item_columns = {row[1] for row in connection.execute("PRAGMA table_info(order_items)")}
+    if "item_note" not in item_columns:
+        connection.execute("ALTER TABLE order_items ADD COLUMN item_note TEXT")
     event_columns = {row[1] for row in connection.execute("PRAGMA table_info(edge_order_events)")}
     if "remote_staff_key_id" not in event_columns:
         connection.execute("ALTER TABLE edge_order_events ADD COLUMN remote_staff_key_id INTEGER")

@@ -8,7 +8,7 @@ function addVariant(label = '', price = '') {
     row.innerHTML = `
         <input type="text" placeholder="Label" value="${label}" onchange="updateVariants()" class="variant-label">
         <input type="number" placeholder="Price" value="${price}" onchange="updateVariants()" class="variant-price" step="0.01">
-        <button type="button" onclick="this.parentNode.remove(); updateVariants()">×</button>
+        <button class="button secondary" type="button" aria-label="Remove option" onclick="this.parentNode.remove(); updateVariants()">Remove</button>
     `;
     container.appendChild(row);
     updateVariants();
