@@ -30,6 +30,13 @@ function twilio_client_credentials(array $config): array
     return ['method'=>$method,'username'=>$accountSid,'password'=>(string)($config['auth_token']??''),'account_sid'=>null,'region'=>$region];
 }
 
+function twilio_sms_sender_options(array $config): array
+{
+    if(!empty($config['sms_from']))return ['from'=>(string)$config['sms_from']];
+    if(!empty($config['messaging_service_sid']))return ['messagingServiceSid'=>(string)$config['messaging_service_sid']];
+    return [];
+}
+
 function message_delivery_log(PDO $pdo,int $vendorId,?int $orderId,string $channel,string $recipient,string $status,?string $sid=null,?string $error=null): void
 {
     $pdo->prepare('INSERT INTO message_deliveries(vendor_id,order_id,channel,recipient,event_type,provider_message_sid,status,error_message) VALUES(?,?,?,?,\'order_ready\',?,?,?)')->execute([$vendorId,$orderId,$channel,$recipient,$sid,$status,$error?mb_substr($error,0,255):null]);
@@ -56,10 +63,10 @@ function send_order_ready_message(PDO $pdo,int $vendorId,int $orderId): array
     foreach(messaging_channels($config) as $channel){
         try{
             if($channel==='sms'){
-                $payload=['body'=>$body];
-                if(!empty($config['messaging_service_sid']))$payload['messagingServiceSid']=$config['messaging_service_sid'];
-                else $payload['from']=$config['sms_from']??'';
-                if(empty($payload['from'])&&empty($payload['messagingServiceSid']))throw new RuntimeException('SMS sender is not configured.');
+                // Prefer the vendor's explicit number. A Messaging Service may be
+                // configured for another channel or have an empty SMS sender pool.
+                $payload=['body'=>$body]+twilio_sms_sender_options($config);
+                if(count($payload)===1)throw new RuntimeException('SMS sender is not configured.');
                 $message=$client->messages->create($to,$payload);
             }else{
                 $from=(string)($config['whatsapp_from']??'');if($from==='')throw new RuntimeException('WhatsApp sender is not configured.');
