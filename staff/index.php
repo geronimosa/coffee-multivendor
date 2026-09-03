@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/vendor_auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/rich_text.php';
 require_once __DIR__ . '/../includes/restaurant_service.php';
+require_once __DIR__ . '/../includes/vendor_portal_nav.php';
 
 $slug = trim((string) ($_GET['slug'] ?? ''));
 $stmt = $pdo->prepare("SELECT * FROM restaurants WHERE slug=? AND status='active'");
@@ -92,9 +93,9 @@ if ($authorized) {
 }
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= e($vendor['name']) ?> staff</title><link rel="stylesheet" href="/assets/css/super-admin.css?v=20260902-2"><?php if ($authorized): ?><meta http-equiv="refresh" content="15"><?php endif; ?></head><body class="staff-page <?= $authorized ? 'staff-queue' : '' ?>">
-<header class="topbar"><strong><?= e($vendor['name']) ?> · Staff</strong><?php if ($authorized): ?><a href="/staff/logout.php?slug=<?= urlencode($slug) ?>">Log out</a><?php endif; ?></header><main class="container">
+<header class="topbar"><strong><?= e($vendor['name']) ?> · Staff</strong><?php if($authorized)vendor_portal_nav($pdo,$vendor,'orders');?><?php if ($authorized): ?><a href="/staff/logout.php?slug=<?= urlencode($slug) ?>">Log out</a><?php endif; ?></header><main class="container">
 <?php if (!$authorized): ?><section class="card" style="max-width:480px;margin:auto"><h1>Staff sign in</h1><p class="muted">Enter the 10-character staff key generated for this vendor.</p><?php if ($message): ?><div class="notice"><?= e($message) ?></div><?php endif; ?><?php if ($error): ?><div class="notice error"><?= e($error) ?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="staff_key_login" value="1"><label for="staff_key">Staff key</label><input id="staff_key" name="staff_key" required minlength="10" maxlength="10" pattern="[A-HJ-NP-Za-km-z2-9]{10}" autocomplete="one-time-code" autocapitalize="none" spellcheck="false"><p><button type="submit">Open staff portal</button></p></form></section>
-<?php else: ?><div class="actions fulfilment-head"><div><h1><?=$isRestaurant?'Kitchen queue':'Fulfilment queue'?></h1><p class="muted">Refreshes every 15 seconds</p></div><div class="actions"><?php if(!$isRestaurant):?><a class="button secondary" href="/shop/<?= e($slug) ?>" target="_blank">Customer shop</a><?php endif;?><?php if($isRestaurant):?><a class="button secondary" href="/vendor/<?=e($slug)?>/tables">Tables</a><?php endif;?><?php if (vendor_admin_can_access($pdo, $vendorId)): ?><a class="button secondary" href="/vendor/<?=e($slug)?>/reports">Reports</a><a class="button" href="/product/<?= e($slug) ?>">Products</a><?php endif; ?></div></div>
+<?php else: ?><div class="actions fulfilment-head"><div><h1><?=$isRestaurant?'Kitchen queue':'Fulfilment queue'?></h1><p class="muted">Refreshes every 15 seconds</p></div></div>
 <nav class="queue-tabs" aria-label="Order queues"><?php foreach ($tabs as $key => $tab): ?><a class="queue-tab <?= $activeTab === $key ? 'active' : '' ?>" href="?tab=<?= e($key) ?>"><?= e($tab['label']) ?><span><?= $counts[$key] ?></span></a><?php endforeach; ?></nav>
 <?php if (!$orders): ?><section class="card empty"><h2>No <?= e(strtolower($tabs[$activeTab]['label'])) ?> orders</h2></section><?php endif; ?>
 <?php foreach ($orders as $order):
