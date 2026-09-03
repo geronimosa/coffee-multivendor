@@ -48,7 +48,7 @@ function generate_edge_staff_key(): string
     return $key;
 }
 
-function create_edge_staff_access_key(PDO $pdo, int $vendorId, int $userId, string $username, ?int $validDays): array
+function create_edge_staff_access_key(PDO $pdo, int $vendorId, int $userId, string $username, ?int $validDays, string $portalRole='staff'): array
 {
     $username = trim($username);
     if (!preg_match('/^[A-Za-z0-9._-]{2,50}$/', $username)) {
@@ -57,6 +57,7 @@ function create_edge_staff_access_key(PDO $pdo, int $vendorId, int $userId, stri
     if ($validDays !== null && ($validDays < 1 || $validDays > 365)) {
         throw new InvalidArgumentException('Key duration must be between 1 and 365 days.');
     }
+    if(!in_array($portalRole,['staff','vendor_admin'],true))throw new InvalidArgumentException('Choose a valid access level.');
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
@@ -72,19 +73,19 @@ function create_edge_staff_access_key(PDO $pdo, int $vendorId, int $userId, stri
         $expiresSql = $validDays === null ? 'NULL' : "DATE_ADD(NOW(), INTERVAL {$validDays} DAY)";
         if ($existing) {
             $stmt = $pdo->prepare(
-                "UPDATE edge_staff_access_keys SET key_hash=?,status='active',expires_at={$expiresSql},revoked_at=NULL,created_by=?,created_at=NOW() WHERE id=? AND vendor_id=?"
+                "UPDATE edge_staff_access_keys SET key_hash=?,portal_role=?,status='active',expires_at={$expiresSql},revoked_at=NULL,created_by=?,created_at=NOW() WHERE id=? AND vendor_id=?"
             );
-            $stmt->execute([edge_secret_hash($accessKey), $userId, $existing['id'], $vendorId]);
+            $stmt->execute([edge_secret_hash($accessKey),$portalRole,$userId,$existing['id'],$vendorId]);
             $keyId = (int) $existing['id'];
         } else {
             $stmt = $pdo->prepare(
-                "INSERT INTO edge_staff_access_keys (vendor_id,username,key_hash,expires_at,created_by) VALUES (?,?,?,{$expiresSql},?)"
+                "INSERT INTO edge_staff_access_keys (vendor_id,username,key_hash,portal_role,expires_at,created_by) VALUES (?,?,?,?,{$expiresSql},?)"
             );
-            $stmt->execute([$vendorId, $username, edge_secret_hash($accessKey), $userId]);
+            $stmt->execute([$vendorId,$username,edge_secret_hash($accessKey),$portalRole,$userId]);
             $keyId = (int) $pdo->lastInsertId();
         }
         $pdo->commit();
-        return ['key' => $accessKey, 'id' => $keyId, 'username' => $username];
+        return ['key'=>$accessKey,'id'=>$keyId,'username'=>$username,'portal_role'=>$portalRole];
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $exception;

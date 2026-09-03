@@ -16,10 +16,10 @@ function staff_can_access(PDO $pdo, int $vendorId): bool
     }
     $keyId=(int)($_SESSION['staff_access_key_id']??0);
     if($keyId>0 && (int)($_SESSION['staff_key_vendor_id']??0)===$vendorId){
-        $stmt=$pdo->prepare("SELECT id FROM edge_staff_access_keys WHERE id=? AND vendor_id=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
+        $stmt=$pdo->prepare("SELECT id,portal_role FROM edge_staff_access_keys WHERE id=? AND vendor_id=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
         $stmt->execute([$keyId,$vendorId]);
-        if($stmt->fetchColumn())return true;
-        unset($_SESSION['staff_access_key_id'],$_SESSION['staff_key_vendor_id'],$_SESSION['staff_key_username']);
+        if($key=$stmt->fetch()){$_SESSION['staff_key_role']=(string)$key['portal_role'];return true;}
+        unset($_SESSION['staff_access_key_id'],$_SESSION['staff_key_vendor_id'],$_SESSION['staff_key_username'],$_SESSION['staff_key_role']);
     }
     $userId=(int)($_SESSION['staff_user_id']??0);
     return $userId>0 && (int)($_SESSION['staff_vendor_id']??0)===$vendorId && vendor_membership($pdo,$userId,$vendorId)!==null;
@@ -29,10 +29,10 @@ function complete_staff_key_login(PDO $pdo,string $accessKey,int $vendorId): boo
 {
     $accessKey=trim($accessKey);
     if(!preg_match('/^[A-HJ-NP-Za-km-z2-9]{10}$/',$accessKey))return false;
-    $stmt=$pdo->prepare("SELECT id,username FROM edge_staff_access_keys WHERE vendor_id=? AND key_hash=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
+    $stmt=$pdo->prepare("SELECT id,username,portal_role FROM edge_staff_access_keys WHERE vendor_id=? AND key_hash=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
     $stmt->execute([$vendorId,hash('sha256',$accessKey)]);$key=$stmt->fetch();
     if(!$key)return false;
-    session_regenerate_id(true);$_SESSION['staff_access_key_id']=(int)$key['id'];$_SESSION['staff_key_vendor_id']=$vendorId;$_SESSION['staff_key_username']=(string)$key['username'];
+    session_regenerate_id(true);$_SESSION['staff_access_key_id']=(int)$key['id'];$_SESSION['staff_key_vendor_id']=$vendorId;$_SESSION['staff_key_username']=(string)$key['username'];$_SESSION['staff_key_role']=(string)$key['portal_role'];
     unset($_SESSION['staff_user_id'],$_SESSION['staff_vendor_id']);
     return true;
 }
@@ -46,6 +46,11 @@ function vendor_admin_can_access(PDO $pdo, int $vendorId): bool
         if ($user && (int) $user['active'] && $user['role'] === 'super_admin') {
             return true;
         }
+    }
+
+    if((int)($_SESSION['staff_access_key_id']??0)>0&&(int)($_SESSION['staff_key_vendor_id']??0)===$vendorId&&($_SESSION['staff_key_role']??'')==='vendor_admin'){
+        $stmt=$pdo->prepare("SELECT id FROM edge_staff_access_keys WHERE id=? AND vendor_id=? AND portal_role='vendor_admin' AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1");
+        $stmt->execute([(int)$_SESSION['staff_access_key_id'],$vendorId]);if($stmt->fetchColumn())return true;
     }
 
     $userId = (int) ($_SESSION['staff_user_id'] ?? 0);

@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $vendorId,
                 (int) $_SESSION['user_id'],
                 (string) ($_POST['username'] ?? ''),
-                $validDays === null ? null : (int) $validDays
+                $validDays === null ? null : (int) $validDays,
+                (string)($_POST['portal_role']??'staff')
             );
             audit_log($pdo, 'edge.staff_access_created', 'edge_staff_access_key', (string) $staffAccess['id'], $vendorId);
             $message = 'Copy this staff key now. It is shown once and works on the central vendor portal; the Pi will receive its hash on the next sync.';
@@ -70,7 +71,7 @@ $stmt->execute([$vendorId]);
 $device = $stmt->fetch() ?: null;
 
 $stmt = $pdo->prepare(
-    "SELECT k.id,k.username,k.status,k.expires_at,k.revoked_at,k.created_at,
+    "SELECT k.id,k.username,k.portal_role,k.status,k.expires_at,k.revoked_at,k.created_at,
             CASE WHEN status='active' AND (expires_at IS NULL OR expires_at>NOW()) THEN 1 ELSE 0 END AS usable
      FROM edge_staff_access_keys k
      JOIN (SELECT username,MAX(id) AS latest_id FROM edge_staff_access_keys WHERE vendor_id=? GROUP BY username) latest ON latest.latest_id=k.id
@@ -94,8 +95,9 @@ require __DIR__ . '/_header.php';
 <?php endif; ?>
 
 <?php if ($staffAccess): ?>
-<section class="card"><h2>New Edge staff key</h2>
+<section class="card"><h2>New access key</h2>
     <p>Username: <strong><?= e($staffAccess['username']) ?></strong></p>
+    <p>Access: <strong><?=($staffAccess['portal_role']??'staff')==='vendor_admin'?'Vendor administrator':'Staff'?></strong></p>
     <p><code class="enrollment-key"><?= e($staffAccess['key']) ?></code></p>
     <p class="muted">Give this key only to its named user. It cannot be shown again.</p>
 </section>
@@ -129,13 +131,14 @@ require __DIR__ . '/_header.php';
     <?php endif; ?>
 </section>
 
-<section class="card"><h2>Local staff portal</h2>
-    <p class="muted">Create an individual 10-character key for each person who may use <code>/vendor/<?= e($vendor['slug']) ?></code> on the central site or assigned Pi. Only key hashes are stored and synchronized.</p>
+<section class="card"><h2>Vendor portal access</h2>
+    <p class="muted">Staff keys operate fulfilment. Vendor administrator keys also unlock products, reports and administration. Existing keys remain staff-only unless replaced.</p>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>">
         <div class="grid">
             <div><label for="username">Username</label><input id="username" name="username" minlength="2" maxlength="50" pattern="[A-Za-z0-9._-]+" required placeholder="e.g. steve"></div>
             <div><label for="valid_days">Valid for days <span class="muted">(optional)</span></label><input id="valid_days" type="number" name="valid_days" min="1" max="365" placeholder="Leave blank to never expire"></div>
+            <div><label for="portal_role">Access level</label><select id="portal_role" name="portal_role"><option value="staff">Staff</option><option value="vendor_admin">Vendor administrator</option></select></div>
         </div>
         <button type="submit" name="create_staff_access" value="1">Create staff key</button>
     </form>
@@ -143,9 +146,9 @@ require __DIR__ . '/_header.php';
 
 <section class="card"><h2>Staff keys</h2>
 <?php if (!$staffKeys): ?><p class="muted">No staff keys have been created.</p><?php else: ?>
-<div class="table-wrap"><table><thead><tr><th>Staff</th><th>Created</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>
+<div class="table-wrap"><table><thead><tr><th>User</th><th>Access</th><th>Created</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>
 <?php foreach ($staffKeys as $key): ?>
-<tr><td><?= e($key['username']) ?></td><td><?= e($key['created_at']) ?></td><td><?= e($key['expires_at'] ?: 'No expiry') ?></td><td><span class="badge <?= (int) $key['usable'] === 1 ? '' : 'suspended' ?>"><?= (int) $key['usable'] === 1 ? 'Active' : ($key['status'] === 'revoked' ? 'Revoked' : 'Expired') ?></span></td><td><div class="actions">
+<tr><td><?= e($key['username']) ?></td><td><?=($key['portal_role']??'staff')==='vendor_admin'?'Vendor administrator':'Staff'?></td><td><?= e($key['created_at']) ?></td><td><?= e($key['expires_at'] ?: 'No expiry') ?></td><td><span class="badge <?= (int) $key['usable'] === 1 ? '' : 'suspended' ?>"><?= (int) $key['usable'] === 1 ? 'Active' : ($key['status'] === 'revoked' ? 'Revoked' : 'Expired') ?></span></td><td><div class="actions">
 <form method="post" onsubmit="return confirm('Replace the current key for <?= e($key['username']) ?>? The old key will stop working after the Pi synchronizes.');"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>"><input type="hidden" name="staff_key_id" value="<?= (int) $key['id'] ?>"><button type="submit" name="regenerate_staff_access" value="1">Regenerate</button></form>
 <?php if ((int) $key['usable'] === 1): ?><form method="post" onsubmit="return confirm('Revoke access for <?= e($key['username']) ?>?');"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="vendor_id" value="<?= (int) $vendorId ?>"><input type="hidden" name="staff_key_id" value="<?= (int) $key['id'] ?>"><button class="danger-button" type="submit" name="revoke_staff_access" value="1">Revoke</button></form><?php endif; ?>
 </div>
